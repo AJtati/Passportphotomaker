@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, Button, Alert } from 'react-bootstrap'; // Import Alert
+import { Card, Button, Alert } from 'react-bootstrap';
 import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 
@@ -8,24 +8,29 @@ function getCroppedImg(image, crop, fileName) {
   const canvas = document.createElement('canvas');
   const scaleX = image.naturalWidth / image.width;
   const scaleY = image.naturalHeight / image.height;
-  canvas.width = crop.width;
-  canvas.height = crop.height;
+
+  // Calculate the actual pixel dimensions of the cropped region
+  const actualCropWidth = crop.width * scaleX;
+  const actualCropHeight = crop.height * scaleY;
+
+  canvas.width = actualCropWidth;
+  canvas.height = actualCropHeight;
   const ctx = canvas.getContext('2d');
 
   ctx.drawImage(
     image,
     crop.x * scaleX,
     crop.y * scaleY,
-    crop.width * scaleX,
-    crop.height * scaleY,
+    actualCropWidth, // Use actual pixel dimensions for source width
+    actualCropHeight, // Use actual pixel dimensions for source height
     0,
     0,
-    crop.width,
-    crop.height
+    actualCropWidth, // Use actual pixel dimensions for destination width
+    actualCropHeight // Use actual pixel dimensions for destination height
   );
 
   return new Promise((resolve) => {
-    resolve(canvas.toDataURL('image/png'));
+    resolve(canvas.toDataURL('image/png')); // PNG is lossless
   });
 }
 
@@ -35,7 +40,7 @@ const Editor = ({ uploadedImage, onCrop, passportDimensions }) => {
   const [completedCrop, setCompletedCrop] = useState(null);
   const imgRef = useRef(null);
   const [aspect, setAspect] = useState(1);
-  const [showConfirmation, setShowConfirmation] = useState(false); // New state for confirmation
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   useEffect(() => {
     if (passportDimensions) {
@@ -43,10 +48,9 @@ const Editor = ({ uploadedImage, onCrop, passportDimensions }) => {
     }
   }, [passportDimensions]);
 
-  // Effect to hide confirmation message
   useEffect(() => {
     if (showConfirmation) {
-      const timer = setTimeout(() => setShowConfirmation(false), 3000); // Hide after 3 seconds
+      const timer = setTimeout(() => setShowConfirmation(false), 3000);
       return () => clearTimeout(timer);
     }
   }, [showConfirmation]);
@@ -74,7 +78,7 @@ const Editor = ({ uploadedImage, onCrop, passportDimensions }) => {
     if (completedCrop?.width && completedCrop?.height && imgRef.current) {
       const croppedImageUrl = await getCroppedImg(imgRef.current, completedCrop, 'newFile.png');
       onCrop(croppedImageUrl);
-      setShowConfirmation(true); // Show confirmation
+      setShowConfirmation(true);
     }
   };
 

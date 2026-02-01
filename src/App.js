@@ -4,7 +4,8 @@ import Settings from './components/Settings';
 import Editor from './components/Editor';
 import Preview from './components/Preview';
 import MultiPhoto from './components/MultiPhoto';
-import Logo from './components/Logo'; // Import the new Logo component
+import ImageResizer from './components/ImageResizer'; // New component for the third tab
+import Logo from './components/Logo';
 import { jsPDF } from 'jspdf';
 import './styles/App.css';
 
@@ -50,6 +51,9 @@ function App() {
               <Nav.Item>
                 <Nav.Link eventKey="multi">Multi-Photo Print</Nav.Link>
               </Nav.Item>
+              <Nav.Item>
+                <Nav.Link eventKey="resize">Change Photo Size</Nav.Link>
+              </Nav.Item>
             </Nav>
           </Navbar.Collapse>
         </Container>
@@ -58,6 +62,7 @@ function App() {
       <Container>
         {activeTab === 'passport' && <PassportPhotoCreator />}
         {activeTab === 'multi' && <MultiPhoto />}
+        {activeTab === 'resize' && <ImageResizer />}
       </Container>
     </>
   );
@@ -67,6 +72,8 @@ function App() {
 // --- Component for the Passport Photo functionality ---
 function PassportPhotoCreator() {
   const previewCanvasRef = useRef(null);
+  const previewSectionRef = useRef(null); // Ref for the preview section for scrolling
+
   const [uploadedImage, setUploadedImage] = useState(null);
   const [croppedImage, setCroppedImage] = useState(null);
   const [passport, setPassport] = useState(PRESET_PASSPORT_SIZES.india);
@@ -105,19 +112,40 @@ function PassportPhotoCreator() {
     if (shouldResetCrop) setCroppedImage(null);
   };
 
+  const handleCropApplied = (croppedImageUrl) => {
+    setCroppedImage(croppedImageUrl);
+    if (previewSectionRef.current) {
+      previewSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   const handleDownload = (format) => {
     const canvas = previewCanvasRef.current;
     if (!canvas) { alert("Preview canvas not ready."); return; }
+
     if (format === 'PDF') {
       const orientation = canvas.width > canvas.height ? 'l' : 'p';
       const pdf = new jsPDF(orientation, paper.unit, [paper.width, paper.height]);
       pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', 0, 0, paper.width, paper.height);
       pdf.save('passport_photos.pdf');
     } else {
-      const link = document.createElement('a');
-      link.download = `passport_photos.${format.toLowerCase()}`;
-      link.href = canvas.toDataURL(format === 'JPG' ? 'image/jpeg' : 'image/png', 1.0);
-      link.click();
+      const imageFormat = format === 'JPG' ? 'image/jpeg' : 'image/png';
+      const fileExtension = format.toLowerCase();
+      
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.download = `passport_photos.${fileExtension}`;
+          link.href = url;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        } else {
+          alert("Failed to generate image for download.");
+        }
+      }, imageFormat, 1.0);
     }
   };
 
@@ -130,11 +158,11 @@ function PassportPhotoCreator() {
           presets={{ passport: PRESET_PASSPORT_SIZES, paper: PRESET_PAPER_SIZES }}
         />
         <Editor 
-          uploadedImage={uploadedImage} onCrop={setCroppedImage} passportDimensions={passport}
+          uploadedImage={uploadedImage} onCrop={handleCropApplied} passportDimensions={passport}
           key={passport.width / passport.height} 
         />
       </Col>
-      <Col md={7}>
+      <Col md={7} ref={previewSectionRef}>
         <Preview
           ref={previewCanvasRef} paper={paper} passport={passport} croppedImage={croppedImage}
           addBorder={addBorder} dpi={DPI}

@@ -2,7 +2,7 @@ import React from 'react';
 
 const Logo = ({ size = 40 }) => (
   <img 
-    src="/logo1.png" 
+    src={process.env.PUBLIC_URL + '/logo1.png'} 
     alt="App Logo" 
     style={{ 
       width: `${size}px`, 

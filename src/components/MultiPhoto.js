@@ -59,7 +59,6 @@ const MultiPhoto = () => {
           setImageObjects(currentObjs => {
             const finalObjs = [...currentObjs];
             finalObjs[index] = img;
-            // Check if all images are now loaded before drawing
             if (finalObjs.every((obj, i) => !images[i] || obj?.complete)) {
               drawCanvas(finalObjs);
             }
@@ -132,14 +131,27 @@ const MultiPhoto = () => {
     const canvas = canvasRef.current;
     if (!canvas) { alert("Preview canvas not ready."); return; }
     if (format === 'PDF') {
-      const pdf = new jsPDF('l', 'mm', [A4_WIDTH_MM, A4_HEIGHT_MM]); // 'l' for landscape
+      const pdf = new jsPDF('l', 'mm', [A4_WIDTH_MM, A4_HEIGHT_MM]);
       pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', 0, 0, A4_WIDTH_MM, A4_HEIGHT_MM);
       pdf.save('multi-photo_A4_landscape.pdf');
     } else {
-      const link = document.createElement('a');
-      link.download = `multi-photo_A4_landscape.${format.toLowerCase()}`;
-      link.href = canvas.toDataURL(format === 'JPG' ? 'image/jpeg' : 'image/png', 1.0);
-      link.click();
+      const imageFormat = format === 'JPG' ? 'image/jpeg' : 'image/png';
+      const fileExtension = format.toLowerCase();
+
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.download = `multi-photo_A4_landscape.${fileExtension}`;
+          link.href = url;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        } else {
+          alert("Failed to generate image for download.");
+        }
+      }, imageFormat, 1.0);
     }
   };
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, Button } from 'react-bootstrap';
+import { Card, Button, Alert } from 'react-bootstrap'; // Import Alert
 import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 
@@ -35,12 +35,21 @@ const Editor = ({ uploadedImage, onCrop, passportDimensions }) => {
   const [completedCrop, setCompletedCrop] = useState(null);
   const imgRef = useRef(null);
   const [aspect, setAspect] = useState(1);
+  const [showConfirmation, setShowConfirmation] = useState(false); // New state for confirmation
 
   useEffect(() => {
     if (passportDimensions) {
       setAspect(passportDimensions.width / passportDimensions.height);
     }
   }, [passportDimensions]);
+
+  // Effect to hide confirmation message
+  useEffect(() => {
+    if (showConfirmation) {
+      const timer = setTimeout(() => setShowConfirmation(false), 3000); // Hide after 3 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [showConfirmation]);
 
   function onImageLoad(e) {
     const { width, height } = e.currentTarget;
@@ -58,13 +67,14 @@ const Editor = ({ uploadedImage, onCrop, passportDimensions }) => {
       height
     );
     setCrop(newCrop);
-    setCompletedCrop(newCrop); // Set initial completed crop
+    setCompletedCrop(newCrop);
   }
 
   const handleCrop = async () => {
     if (completedCrop?.width && completedCrop?.height && imgRef.current) {
       const croppedImageUrl = await getCroppedImg(imgRef.current, completedCrop, 'newFile.png');
       onCrop(croppedImageUrl);
+      setShowConfirmation(true); // Show confirmation
     }
   };
 
@@ -87,6 +97,11 @@ const Editor = ({ uploadedImage, onCrop, passportDimensions }) => {
             <div className="d-grid gap-2 mt-3">
               <Button variant="secondary" onClick={handleCrop}>Apply Crop</Button>
             </div>
+            {showConfirmation && (
+              <Alert variant="success" className="mt-3">
+                Crop Applied!
+              </Alert>
+            )}
             <p className="text-muted small mt-2">Adjust the selection on your photo. The frame is locked to the correct aspect ratio.</p>
           </div>
         ) : (

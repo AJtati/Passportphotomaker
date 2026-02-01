@@ -174,7 +174,7 @@ const MultiPhoto = () => {
           </Card.Body>
         </Card>
       </Col>
-      <Col md={7}>
+      <Col md={7} className="pb-5"> {/* Add pb-5 here */}
         <Card>
           <Card.Body>
             <Card.Title>A4 Landscape Preview</Card.Title>

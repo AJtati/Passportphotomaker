@@ -9,7 +9,7 @@ body {
 
 .App {
   max-width: 900px;
-  margin: 2rem auto;
+  margin: 2rem auto 4rem auto; /* Added 4rem bottom margin */
   padding: 2rem;
   background-color: #ffffff;
   border-radius: 8px;

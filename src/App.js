@@ -4,7 +4,7 @@ import Settings from './components/Settings';
 import Editor from './components/Editor';
 import Preview from './components/Preview';
 import MultiPhoto from './components/MultiPhoto';
-import ImageResizer from './components/ImageResizer'; // New component for the third tab
+import ImageResizer from './components/ImageResizer';
 import Logo from './components/Logo';
 import { jsPDF } from 'jspdf';
 import './styles/App.css';
@@ -162,7 +162,7 @@ function PassportPhotoCreator() {
           key={passport.width / passport.height} 
         />
       </Col>
-      <Col md={7} ref={previewSectionRef}>
+      <Col md={7} ref={previewSectionRef} className="pb-5"> {/* Attach ref here and add pb-5 */}
         <Preview
           ref={previewCanvasRef} paper={paper} passport={passport} croppedImage={croppedImage}
           addBorder={addBorder} dpi={DPI}

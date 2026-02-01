@@ -5,7 +5,7 @@ const ImageResizer = () => {
   const [uploadedImage, setUploadedImage] = useState(null);
   const [originalWidth, setOriginalWidth] = useState(0);
   const [originalHeight, setOriginalHeight] = useState(0);
-  const [originalImageSizeKB, setOriginalImageSizeKB] = useState(null); // New state for original size
+  const [originalImageSizeKB, setOriginalImageSizeKB] = useState(null);
   const [newWidth, setNewWidth] = useState('');
   const [newHeight, setNewHeight] = useState('');
   const [maintainAspectRatio, setMaintainAspectRatio] = useState(true);
@@ -14,7 +14,7 @@ const ImageResizer = () => {
   
   const [currentProcessedImage, setCurrentProcessedImage] = useState(null);
   const [finalProcessedImage, setFinalProcessedImage] = useState(null);
-  const [downloadableBlob, setDownloadableBlob] = useState(null); // New state for the final blob
+  const [downloadableBlob, setDownloadableBlob] = useState(null);
   const [processingDimensions, setProcessingDimensions] = useState(false);
   const [processingCompression, setProcessingCompression] = useState(false);
   const [currentFileSizeKB, setCurrentFileSizeKB] = useState(null);
@@ -133,11 +133,9 @@ const ImageResizer = () => {
     const value = e.target.value;
     const size = parseFloat(value);
     
-    // Validation: Max 5MB hard limit
     const maxHardLimitMB = 5;
     let maxAllowedSizeKB = maxHardLimitMB * 1024;
 
-    // Validation: Cannot exceed original image size
     if (originalImageSizeKB) {
       maxAllowedSizeKB = Math.min(maxAllowedSizeKB, parseFloat(originalImageSizeKB));
     }
@@ -151,7 +149,7 @@ const ImageResizer = () => {
 
     if (!isNaN(size) && size > 0 && inputSizeKB > maxAllowedSizeKB) {
       alert(`Target size cannot exceed ${maxAllowedSizeKB / 1024} MB (or original image size).`);
-      setTargetFileSize(''); // Clear invalid input
+      setTargetFileSize('');
     } else {
       setTargetFileSize(value);
     }
@@ -202,7 +200,7 @@ const ImageResizer = () => {
     
     const blob = await new Promise(resolve => tempCanvas.toBlob(resolve, 'image/png', 1.0));
     setCurrentFileSizeKB((blob.size / 1024).toFixed(2));
-    setDownloadableBlob(blob); // Store the blob for download
+    setDownloadableBlob(blob);
 
     setProcessingDimensions(false);
     setShowDimensionConfirmation(true);
@@ -254,7 +252,7 @@ const ImageResizer = () => {
     
     setFinalProcessedImage(URL.createObjectURL(finalBlob));
     setCurrentFileSizeKB((finalBlob.size / 1024).toFixed(2));
-    setDownloadableBlob(finalBlob); // Store the final compressed blob for download
+    setDownloadableBlob(finalBlob);
     setProcessingCompression(false);
     setShowSizeConfirmation(true);
     if (finalPreviewSectionRef.current) {
@@ -264,7 +262,7 @@ const ImageResizer = () => {
 
 
   const handleDownload = (format) => {
-    if (!downloadableBlob) { // Use the stored blob
+    if (!downloadableBlob) {
       alert("No image to download. Please process an image first.");
       return;
     }
@@ -277,9 +275,6 @@ const ImageResizer = () => {
       return;
     } else {
       const imageFormat = format === 'JPG' ? 'image/jpeg' : 'image/png';
-      // If the format requested is different from the downloadableBlob's type,
-      // or if it's PNG and the blob is JPEG (or vice-versa), re-generate.
-      // Otherwise, use the stored blob directly.
       if (downloadableBlob.type === imageFormat || (format === 'PNG' && downloadableBlob.type === 'image/png') || (format === 'JPG' && downloadableBlob.type === 'image/jpeg')) {
         const url = URL.createObjectURL(downloadableBlob);
         link.href = url;
@@ -288,7 +283,6 @@ const ImageResizer = () => {
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
       } else {
-        // Regenerate blob if format is different (e.g., stored as JPEG, but user wants PNG)
         const canvas = previewCanvasRef.current;
         if (!canvas) return;
         canvas.toBlob((blob) => {
@@ -302,7 +296,7 @@ const ImageResizer = () => {
           } else {
             alert("Failed to generate image for download.");
           }
-        }, imageFormat, 1.0); // Use 1.0 quality for regeneration
+        }, imageFormat, 1.0);
       }
     }
   };
@@ -392,7 +386,7 @@ const ImageResizer = () => {
           </Card.Body>
         </Card>
       </Col>
-      <Col md={7} ref={finalPreviewSectionRef}>
+      <Col md={7} ref={finalPreviewSectionRef} className="pb-5"> {/* Add pb-5 here */}
         <Card>
           <Card.Body>
             <Card.Title>Processed Image Preview</Card.Title>

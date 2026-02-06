@@ -36,6 +36,8 @@ const CollagePrint = () => {
   const initialImageXRef = useRef(0);
   const initialImageYRef = useRef(0);
   const imagesRef = useRef([]);
+  const moveIntervalRef = useRef(null);
+  const resizeIntervalRef = useRef(null);
 
   // Update window size
   useEffect(() => {
@@ -165,6 +167,78 @@ const CollagePrint = () => {
       ctx.restore();
     });
   }, [dynamicHandleSize]);
+
+  const moveImageByStep = useCallback((dx, dy) => {
+    if (!selectedId || !imagesRef.current || imagesRef.current.length === 0) return;
+
+    const currentImages = imagesRef.current;
+    const imgIndex = currentImages.findIndex((img) => img.id === selectedId);
+    if (imgIndex === -1) return;
+
+    const img = { ...currentImages[imgIndex] }; // Create a copy to modify
+    img.x += dx;
+    img.y += dy;
+
+    // Constrain within paper (can move partially off-screen)
+    img.x = Math.max(-img.width, Math.min(img.x, paperSize.width));
+    img.y = Math.max(-img.height, Math.min(img.y, paperSize.height));
+
+    currentImages[imgIndex] = img; // Update the mutable ref
+    drawCanvas(currentImages, selectedId, paperSize, orientation, effectiveScale);
+  }, [selectedId, paperSize, orientation, effectiveScale, drawCanvas]);
+
+  const resizeImageByStep = useCallback((delta) => {
+    if (!selectedId || !imagesRef.current || imagesRef.current.length === 0) return;
+
+    const currentImages = imagesRef.current;
+    const imgIndex = currentImages.findIndex((img) => img.id === selectedId);
+    if (imgIndex === -1) return;
+
+    const img = { ...currentImages[imgIndex] }; // Create a copy to modify
+    const aspect = img.imageObj.naturalWidth / img.imageObj.naturalHeight;
+
+    let newWidth = img.width + delta;
+    let newHeight = newWidth / aspect;
+
+    // Ensure minimum size
+    newWidth = Math.max(50, newWidth);
+    newHeight = newWidth / aspect;
+
+    img.width = newWidth;
+    img.height = newHeight;
+
+    currentImages[imgIndex] = img; // Update the mutable ref
+    drawCanvas(currentImages, selectedId, paperSize, orientation, effectiveScale);
+  }, [selectedId, paperSize, orientation, effectiveScale, drawCanvas]);
+  
+  const startContinuousAction = useCallback((actionFn, ...args) => {
+    // Clear any existing interval first
+    if (moveIntervalRef.current) clearInterval(moveIntervalRef.current);
+    if (resizeIntervalRef.current) clearInterval(resizeIntervalRef.current);
+
+    // Determine which ref to use
+    const intervalRef = (actionFn === moveImageByStep) ? moveIntervalRef : resizeIntervalRef;
+
+    // Call once immediately
+    actionFn(...args);
+    // Then set interval for continuous calls
+    intervalRef.current = setInterval(() => {
+      actionFn(...args);
+    }, 100); // Adjust delay as needed for responsiveness
+  }, [moveImageByStep, resizeImageByStep]);
+
+  const stopContinuousAction = useCallback(() => {
+    if (moveIntervalRef.current) {
+      clearInterval(moveIntervalRef.current);
+      moveIntervalRef.current = null;
+    }
+    if (resizeIntervalRef.current) {
+      clearInterval(resizeIntervalRef.current);
+      resizeIntervalRef.current = null;
+    }
+    // Update React state after continuous action stops
+    setImages([...imagesRef.current]);
+  }, []);
 
   // Draw canvas - optimized for performance
   useEffect(() => {
@@ -534,7 +608,7 @@ const CollagePrint = () => {
       })
     );
   };
-
+  
   const handleDownload = (format) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -801,6 +875,77 @@ const CollagePrint = () => {
               </ul>
             </div>
           </div>
+
+          {isMobile && selectedId && (
+            <div style={{ display: 'flex', flexDirection: 'row', gap: '5px', justifyContent: 'center', marginBottom: '10px', flexWrap: 'wrap' }}>
+              <Button
+                variant="light"
+                onMouseDown={() => startContinuousAction(moveImageByStep, 0, -5)}
+                onMouseUp={stopContinuousAction}
+                onMouseLeave={stopContinuousAction}
+                onTouchStart={() => startContinuousAction(moveImageByStep, 0, -5)}
+                onTouchEnd={stopContinuousAction}
+                style={{ width: '60px', height: '40px' }}
+              >
+                ⬆️
+              </Button>
+              <Button
+                variant="light"
+                onMouseDown={() => startContinuousAction(moveImageByStep, -5, 0)}
+                onMouseUp={stopContinuousAction}
+                onMouseLeave={stopContinuousAction}
+                onTouchStart={() => startContinuousAction(moveImageByStep, -5, 0)}
+                onTouchEnd={stopContinuousAction}
+                style={{ width: '60px', height: '40px' }}
+              >
+                ⬅️
+              </Button>
+              <Button
+                variant="light"
+                onMouseDown={() => startContinuousAction(moveImageByStep, 5, 0)}
+                onMouseUp={stopContinuousAction}
+                onMouseLeave={stopContinuousAction}
+                onTouchStart={() => startContinuousAction(moveImageByStep, 5, 0)}
+                onTouchEnd={stopContinuousAction}
+                style={{ width: '60px', height: '40px' }}
+              >
+                ➡️
+              </Button>
+              <Button
+                variant="light"
+                onMouseDown={() => startContinuousAction(moveImageByStep, 0, 5)}
+                onMouseUp={stopContinuousAction}
+                onMouseLeave={stopContinuousAction}
+                onTouchStart={() => startContinuousAction(moveImageByStep, 0, 5)}
+                onTouchEnd={stopContinuousAction}
+                style={{ width: '60px', height: '40px' }}
+              >
+                ⬇️
+              </Button>
+              <Button
+                variant="light"
+                onMouseDown={() => startContinuousAction(resizeImageByStep, -5)}
+                onMouseUp={stopContinuousAction}
+                onMouseLeave={stopContinuousAction}
+                onTouchStart={() => startContinuousAction(resizeImageByStep, -5)}
+                onTouchEnd={stopContinuousAction}
+                style={{ width: '60px', height: '40px' }}
+              >
+                ➖
+              </Button>
+              <Button
+                variant="light"
+                onMouseDown={() => startContinuousAction(resizeImageByStep, 5)}
+                onMouseUp={stopContinuousAction}
+                onMouseLeave={stopContinuousAction}
+                onTouchStart={() => startContinuousAction(resizeImageByStep, 5)}
+                onTouchEnd={stopContinuousAction}
+                style={{ width: '60px', height: '40px' }}
+              >
+                ➕
+              </Button>
+            </div>
+          )}
 
           {/* Right Side - Canvas */}
           <div

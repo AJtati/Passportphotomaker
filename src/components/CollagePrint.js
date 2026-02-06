@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Row, Col, Card, Button, Form, DropdownButton, Dropdown } from 'react-bootstrap';
 import { jsPDF } from 'jspdf';
 
@@ -46,7 +46,7 @@ const CollagePrint = () => {
     window.addEventListener('resize', updateSize);
     return () => window.removeEventListener('resize', updateSize);
   }, []);
-
+  
   const paperSize = A4_PIXELS[orientation];
 
   // Responsive layout flags
@@ -77,8 +77,8 @@ const CollagePrint = () => {
     imagesRef.current = images;
   }, [images]);
 
-  const drawCanvas = (currentImages, currentSelectedId, currentPaperSize, currentOrientation, currentEffectiveScale) => {
-    if (!canvasRef.current) return;
+  const drawCanvas = useCallback((currentImages, currentSelectedId, currentPaperSize, currentOrientation, currentEffectiveScale) => {
+    if (!canvasRef.current || !Array.isArray(currentImages)) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d', { alpha: true, willReadFrequently: true });
@@ -164,12 +164,15 @@ const CollagePrint = () => {
 
       ctx.restore();
     });
-  };
+  }, [dynamicHandleSize]);
 
   // Draw canvas - optimized for performance
   useEffect(() => {
-    drawCanvas(images, selectedId, paperSize, orientation, effectiveScale);
-  }, [images, selectedId, paperSize, orientation, effectiveScale]); // effectiveScale added here
+    // Only call drawCanvas if images is an array
+    if (Array.isArray(images)) {
+      drawCanvas(images, selectedId, paperSize, orientation, effectiveScale);
+    }
+  }, [images, selectedId, paperSize, orientation, effectiveScale, drawCanvas]);
 
   const handleFileChange = (event) => {
     const files = event.target.files;
@@ -247,7 +250,7 @@ const CollagePrint = () => {
   };
 
   // Update cursor on hover (without dragging)
-  const updateCursorOnHover = (e) => {
+  const updateCursorOnHover = useCallback((e) => {
     if (!canvasRef.current || draggingId) return; // Don't update cursor while dragging
 
     const canvas = canvasRef.current;
@@ -291,10 +294,10 @@ const CollagePrint = () => {
     }
 
     canvas.style.cursor = cursor;
-  };
+  }, [draggingId, effectiveScale, images, selectedId, dynamicHandleSize]);
 
   // Handle canvas mouse down - detect what was clicked
-  const handleCanvasMouseDown = (e) => {
+  const handleCanvasMouseDown = useCallback((e) => {
     if (!canvasRef.current) return;
     e.preventDefault(); // Prevent scrolling on touch
 
@@ -379,10 +382,10 @@ const CollagePrint = () => {
     if (!found) {
       setSelectedId(null);
     }
-  };
+  }, [effectiveScale, images, selectedId, dynamicHandleSize]);
 
   // Handle canvas mouse move (throttled)
-  const handleCanvasMouseMove = (e) => {
+  const handleCanvasMouseMove = useCallback((e) => {
     if (!draggingId || !canvasRef.current) return;
     e.preventDefault(); // Prevent scrolling on touch
 
@@ -455,8 +458,8 @@ const CollagePrint = () => {
       }
 
       // Constrain within paper
-      constrainedX = Math.max(0, Math.min(newX, paperSize.width - newWidth));
-      constrainedY = Math.max(0, Math.min(newY, paperSize.height - newHeight));
+      let constrainedX = Math.max(0, Math.min(newX, paperSize.width - newWidth));
+      let constrainedY = Math.max(0, Math.min(newY, paperSize.height - newHeight));
 
       updatedImg.x = constrainedX;
       updatedImg.y = constrainedY;
@@ -469,9 +472,9 @@ const CollagePrint = () => {
 
     // Redraw the canvas immediately
     drawCanvas(currentImages, selectedId, paperSize, orientation, effectiveScale);
-  };
+  }, [draggingId, effectiveScale, dragStart, paperSize, drawCanvas]);
 
-  const handleCanvasMouseUp = () => {
+  const handleCanvasMouseUp = useCallback(() => {
     setDraggingId(null);
     setDraggingType(null);
     setDraggingCorner(null);
@@ -481,7 +484,26 @@ const CollagePrint = () => {
     dragAnchorRef.current = { x: 0, y: 0 };
     // Officially update React state with the final positions after drag ends
     setImages([...imagesRef.current]);
-  };
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const handleTouchStart = (e) => handleCanvasMouseDown(e);
+    const handleTouchMove = (e) => handleCanvasMouseMove(e);
+    const handleTouchEnd = (e) => handleCanvasMouseUp(e);
+
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+    return () => {
+      canvas.removeEventListener('touchstart', handleTouchStart);
+      canvas.removeEventListener('touchmove', handleTouchMove);
+      canvas.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [handleCanvasMouseDown, handleCanvasMouseMove, handleCanvasMouseUp]);
 
   const handleDelete = () => {
     setImages((prev) => prev.filter((img) => img.id !== selectedId));
@@ -802,9 +824,6 @@ const CollagePrint = () => {
               onMouseMove={(e) => { updateCursorOnHover(e); handleCanvasMouseMove(e); }}
               onMouseUp={handleCanvasMouseUp}
               onMouseLeave={(e) => { canvasRef.current.style.cursor = 'default'; handleCanvasMouseUp(e); }}
-              onTouchStart={handleCanvasMouseDown}
-              onTouchMove={handleCanvasMouseMove}
-              onTouchEnd={handleCanvasMouseUp}
               style={{
                 width: `${paperSize.width * effectiveScale}px`,
                 height: `${paperSize.height * effectiveScale}px`,

@@ -335,6 +335,12 @@ const CollagePrint = () => {
 
       // Check if within rotated image bounds (for any image, not just selected)
       if (pointInRotatedRect(x, y, img)) {
+        // Bring the clicked image to the front
+        setImages((prevImages) => {
+          const clickedImage = prevImages.find((item) => item.id === img.id);
+          const otherImages = prevImages.filter((item) => item.id !== img.id);
+          return [...otherImages, clickedImage];
+        });
         setSelectedId(img.id);
         setDraggingId(img.id);
         setDraggingType('move');
@@ -509,6 +515,50 @@ const CollagePrint = () => {
     }, 50);
   };
 
+  // Z-index manipulation functions
+  const bringToFront = () => {
+    if (!selectedId) return;
+    setImages((prevImages) => {
+      const selectedImage = prevImages.find((img) => img.id === selectedId);
+      const otherImages = prevImages.filter((img) => img.id !== selectedId);
+      return [...otherImages, selectedImage];
+    });
+  };
+
+  const sendToBack = () => {
+    if (!selectedId) return;
+    setImages((prevImages) => {
+      const selectedImage = prevImages.find((img) => img.id === selectedId);
+      const otherImages = prevImages.filter((img) => img.id !== selectedId);
+      return [selectedImage, ...otherImages];
+    });
+  };
+
+  const bringForward = () => {
+    if (!selectedId) return;
+    setImages((prevImages) => {
+      const index = prevImages.findIndex((img) => img.id === selectedId);
+      if (index === -1 || index === prevImages.length - 1) return prevImages; // Already at front or not found
+      const newImages = [...prevImages];
+      const [movedImage] = newImages.splice(index, 1);
+      newImages.splice(index + 1, 0, movedImage);
+      return newImages;
+    });
+  };
+
+  const sendBackward = () => {
+    if (!selectedId) return;
+    setImages((prevImages) => {
+      const index = prevImages.findIndex((img) => img.id === selectedId);
+      if (index === -1 || index === 0) return prevImages; // Already at back or not found
+      const newImages = [...prevImages];
+      const [movedImage] = newImages.splice(index, 1);
+      newImages.splice(index - 1, 0, movedImage);
+      return newImages;
+    });
+  };
+
+
   return (
     <div style={{ minHeight: '100vh', padding: '10px', backgroundColor: '#f5f5f5' }}>
       <Card className="shadow-sm h-100" style={{ minHeight: '100vh' }}>
@@ -594,6 +644,42 @@ const CollagePrint = () => {
                 className="w-100"
               >
                 ➖ Smaller
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={bringToFront}
+                disabled={!selectedId}
+                className="w-100"
+              >
+                ⬆️ Bring to Front
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={bringForward}
+                disabled={!selectedId}
+                className="w-100"
+              >
+                🔼 Bring Forward
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={sendBackward}
+                disabled={!selectedId}
+                className="w-100"
+              >
+                🔽 Send Backward
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={sendToBack}
+                disabled={!selectedId}
+                className="w-100"
+              >
+                ⬇️ Send to Back
               </Button>
             </div>
 

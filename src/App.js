@@ -26,13 +26,14 @@ const PRESET_PAPER_SIZES = {
 // --- Main App Component ---
 function App() {
   const [activeTab, setActiveTab] = useState('passport');
+  const [isNavExpanded, setIsNavExpanded] = useState(false); // New state for Navbar collapse
 
   return (
     <>
-      <Navbar bg="white" expand="lg" className="mb-4 shadow-sm">
+      <Navbar bg="white" expand="lg" className="mb-4 shadow-sm" expanded={isNavExpanded} onToggle={setIsNavExpanded}>
         <Container>
           <Navbar.Brand 
-            onClick={() => setActiveTab('passport')} 
+            onClick={() => { setActiveTab('passport'); setIsNavExpanded(false); }} // Close nav on brand click
             style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
           >
             <Logo />
@@ -43,7 +44,7 @@ function App() {
             <Nav 
               variant="tabs" 
               activeKey={activeTab} 
-              onSelect={(k) => setActiveTab(k)}
+              onSelect={(k) => { setActiveTab(k); setIsNavExpanded(false); }} // Close nav on tab select
               className="ms-auto"
             >
               <Nav.Item>
@@ -128,6 +129,9 @@ function PassportPhotoCreator() {
     const canvas = previewCanvasRef.current;
     if (!canvas) { alert("Preview canvas not ready."); return; }
 
+    // Detect iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
     if (format === 'PDF') {
       const orientation = canvas.width > canvas.height ? 'l' : 'p';
       const pdf = new jsPDF(orientation, paper.unit, [paper.width, paper.height]);
@@ -140,12 +144,18 @@ function PassportPhotoCreator() {
       canvas.toBlob((blob) => {
         if (blob) {
           const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.download = `passport_photos.${fileExtension}`;
-          link.href = url;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
+
+          if (isIOS) {
+            window.open(url, '_blank');
+            alert("iOS: Long-press the image to save it to your device.");
+          } else {
+            const link = document.createElement('a');
+            link.download = `passport_photos.${fileExtension}`;
+            link.href = url;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }
           URL.revokeObjectURL(url);
         } else {
           alert("Failed to generate image for download.");

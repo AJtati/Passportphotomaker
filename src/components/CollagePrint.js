@@ -25,6 +25,7 @@ const CollagePrint = () => {
   const [draggingId, setDraggingId] = useState(null);
   const [draggingType, setDraggingType] = useState(null); // 'move', 'resize', 'rotate'
   const [draggingCorner, setDraggingCorner] = useState(null); // 'nw','ne','sw','se'
+  const [activeButtonId, setActiveButtonId] = useState(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const canvasRef = useRef();
   const containerRef = useRef();
@@ -211,7 +212,8 @@ const CollagePrint = () => {
     drawCanvas(currentImages, selectedId, paperSize, orientation, effectiveScale);
   }, [selectedId, paperSize, orientation, effectiveScale, drawCanvas]);
   
-  const startContinuousAction = useCallback((actionFn, ...args) => {
+  const startContinuousAction = useCallback((buttonId, actionFn, ...args) => {
+    setActiveButtonId(buttonId);
     // Clear any existing interval first
     if (moveIntervalRef.current) clearInterval(moveIntervalRef.current);
     if (resizeIntervalRef.current) clearInterval(resizeIntervalRef.current);
@@ -228,6 +230,7 @@ const CollagePrint = () => {
   }, [moveImageByStep, resizeImageByStep]);
 
   const stopContinuousAction = useCallback(() => {
+    setActiveButtonId(null);
     if (moveIntervalRef.current) {
       clearInterval(moveIntervalRef.current);
       moveIntervalRef.current = null;
@@ -880,67 +883,67 @@ const CollagePrint = () => {
             <div style={{ display: 'flex', flexDirection: 'row', gap: '5px', justifyContent: 'center', marginBottom: '10px', flexWrap: 'wrap' }}>
               <Button
                 variant="light"
-                onMouseDown={() => startContinuousAction(moveImageByStep, 0, -5)}
+                onMouseDown={() => startContinuousAction('moveUp', moveImageByStep, 0, -5)}
                 onMouseUp={stopContinuousAction}
                 onMouseLeave={stopContinuousAction}
-                onTouchStart={() => startContinuousAction(moveImageByStep, 0, -5)}
+                onTouchStart={() => startContinuousAction('moveUp', moveImageByStep, 0, -5)}
                 onTouchEnd={stopContinuousAction}
-                style={{ width: '60px', height: '40px' }}
+                style={{ width: '60px', height: '40px', touchAction: 'manipulation', backgroundColor: activeButtonId === 'moveUp' ? '#e0e0e0' : undefined }}
               >
                 ⬆️
               </Button>
               <Button
                 variant="light"
-                onMouseDown={() => startContinuousAction(moveImageByStep, -5, 0)}
+                onMouseDown={() => startContinuousAction('moveLeft', moveImageByStep, -5, 0)}
                 onMouseUp={stopContinuousAction}
                 onMouseLeave={stopContinuousAction}
-                onTouchStart={() => startContinuousAction(moveImageByStep, -5, 0)}
+                onTouchStart={() => startContinuousAction('moveLeft', moveImageByStep, -5, 0)}
                 onTouchEnd={stopContinuousAction}
-                style={{ width: '60px', height: '40px' }}
+                style={{ width: '60px', height: '40px', touchAction: 'manipulation', backgroundColor: activeButtonId === 'moveLeft' ? '#e0e0e0' : undefined }}
               >
                 ⬅️
               </Button>
               <Button
                 variant="light"
-                onMouseDown={() => startContinuousAction(moveImageByStep, 5, 0)}
+                onMouseDown={() => startContinuousAction('moveRight', moveImageByStep, 5, 0)}
                 onMouseUp={stopContinuousAction}
                 onMouseLeave={stopContinuousAction}
-                onTouchStart={() => startContinuousAction(moveImageByStep, 5, 0)}
+                onTouchStart={() => startContinuousAction('moveRight', moveImageByStep, 5, 0)}
                 onTouchEnd={stopContinuousAction}
-                style={{ width: '60px', height: '40px' }}
+                style={{ width: '60px', height: '40px', touchAction: 'manipulation', backgroundColor: activeButtonId === 'moveRight' ? '#e0e0e0' : undefined }}
               >
                 ➡️
               </Button>
               <Button
                 variant="light"
-                onMouseDown={() => startContinuousAction(moveImageByStep, 0, 5)}
+                onMouseDown={() => startContinuousAction('moveDown', moveImageByStep, 0, 5)}
                 onMouseUp={stopContinuousAction}
                 onMouseLeave={stopContinuousAction}
-                onTouchStart={() => startContinuousAction(moveImageByStep, 0, 5)}
+                onTouchStart={() => startContinuousAction('moveDown', moveImageByStep, 0, 5)}
                 onTouchEnd={stopContinuousAction}
-                style={{ width: '60px', height: '40px' }}
+                style={{ width: '60px', height: '40px', touchAction: 'manipulation', backgroundColor: activeButtonId === 'moveDown' ? '#e0e0e0' : undefined }}
               >
                 ⬇️
               </Button>
               <Button
                 variant="light"
-                onMouseDown={() => startContinuousAction(resizeImageByStep, -5)}
+                onMouseDown={() => startContinuousAction('zoomOut', resizeImageByStep, -5)}
                 onMouseUp={stopContinuousAction}
                 onMouseLeave={stopContinuousAction}
-                onTouchStart={() => startContinuousAction(resizeImageByStep, -5)}
+                onTouchStart={() => startContinuousAction('zoomOut', resizeImageByStep, -5)}
                 onTouchEnd={stopContinuousAction}
-                style={{ width: '60px', height: '40px' }}
+                style={{ width: '60px', height: '40px', touchAction: 'manipulation', backgroundColor: activeButtonId === 'zoomOut' ? '#e0e0e0' : undefined }}
               >
                 ➖
               </Button>
               <Button
                 variant="light"
-                onMouseDown={() => startContinuousAction(resizeImageByStep, 5)}
+                onMouseDown={() => startContinuousAction('zoomIn', resizeImageByStep, 5)}
                 onMouseUp={stopContinuousAction}
                 onMouseLeave={stopContinuousAction}
-                onTouchStart={() => startContinuousAction(resizeImageByStep, 5)}
+                onTouchStart={() => startContinuousAction('zoomIn', resizeImageByStep, 5)}
                 onTouchEnd={stopContinuousAction}
-                style={{ width: '60px', height: '40px' }}
+                style={{ width: '60px', height: '40px', touchAction: 'manipulation', backgroundColor: activeButtonId === 'zoomIn' ? '#e0e0e0' : undefined }}
               >
                 ➕
               </Button>
@@ -985,4 +988,4 @@ const CollagePrint = () => {
   );
 };
 
-export default CollagePrint;
+export default React.memo(CollagePrint);

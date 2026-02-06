@@ -35,6 +35,7 @@ const CollagePrint = () => {
   const dragAnchorRef = useRef({ x: 0, y: 0 });
   const initialImageXRef = useRef(0);
   const initialImageYRef = useRef(0);
+  const imagesRef = useRef([]);
 
   // Update window size
   useEffect(() => {
@@ -72,30 +73,33 @@ const CollagePrint = () => {
   // Dynamic handle size so it stays visible on small screens
   const dynamicHandleSize = Math.min(48, Math.max(18, 28 / effectiveScale));
 
-  // Draw canvas - optimized for performance
   useEffect(() => {
+    imagesRef.current = images;
+  }, [images]);
+
+  const drawCanvas = (currentImages, currentSelectedId, currentPaperSize, currentOrientation, currentEffectiveScale) => {
     if (!canvasRef.current) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d', { alpha: true, willReadFrequently: true });
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2); // Cap DPR at 2 for performance
-    canvas.width = paperSize.width * dpr;
-    canvas.height = paperSize.height * dpr;
+    canvas.width = currentPaperSize.width * dpr;
+    canvas.height = currentPaperSize.height * dpr;
     ctx.scale(dpr, dpr);
 
     // White background
     ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, paperSize.width, paperSize.height);
+    ctx.fillRect(0, 0, currentPaperSize.width, currentPaperSize.height);
 
     // Border
     ctx.strokeStyle = '#ddd';
     ctx.lineWidth = 2;
-    ctx.strokeRect(0, 0, paperSize.width, paperSize.height);
+    ctx.strokeRect(0, 0, currentPaperSize.width, currentPaperSize.height);
 
     // Draw images
-    images.forEach((img) => {
-      const isSelected = img.id === selectedId;
+    currentImages.forEach((img) => {
+      const isSelected = img.id === currentSelectedId;
 
       // Draw image within rotated context
       ctx.save();
@@ -113,7 +117,7 @@ const CollagePrint = () => {
         ctx.strokeRect(-img.width / 2, -img.height / 2, img.width, img.height);
         ctx.setLineDash([]);
 
-        const handleSize = dynamicHandleSize;
+        const handleSize = dynamicHandleSize; // dynamicHandleSize is already dependent on effectiveScale
         const hs = handleSize / 2;
 
         // Corners in local space: nw, ne, sw, se
@@ -160,7 +164,12 @@ const CollagePrint = () => {
 
       ctx.restore();
     });
-  }, [images, selectedId, paperSize, orientation]);
+  };
+
+  // Draw canvas - optimized for performance
+  useEffect(() => {
+    drawCanvas(images, selectedId, paperSize, orientation, effectiveScale);
+  }, [images, selectedId, paperSize, orientation, effectiveScale]); // effectiveScale added here
 
   const handleFileChange = (event) => {
     const files = event.target.files;
@@ -387,76 +396,79 @@ const CollagePrint = () => {
     const x = (clientX - rect.left) / effectiveScale;
     const y = (clientY - rect.top) / effectiveScale;
 
-    setImages((prev) =>
-      prev.map((img) => {
-        if (img.id !== draggingId) return img;
+    // Find the image being dragged in the mutable ref
+    const currentImages = imagesRef.current;
+    const imgIndex = currentImages.findIndex((img) => img.id === draggingId);
+    if (imgIndex === -1) return;
 
-        if (draggingType === 'move') {
-          // Calculate new position based on initial image position and total pointer displacement
-          const newX = initialImageXRef.current + (x - dragStart.x);
-          const newY = initialImageYRef.current + (y - dragStart.y);
+    const img = currentImages[imgIndex];
+    let updatedImg = { ...img };
 
-          // Allow image to move partially off-screen
-          // Note: These min/max bounds might need fine-tuning if the image appears to jump too much
-          // or goes completely off-screen. The current bounds prevent the top-left corner
-          // from going completely off, but the image might still be mostly off.
-          const constrainedX = Math.max(-img.width, Math.min(newX, paperSize.width));
-          const constrainedY = Math.max(-img.height, Math.min(newY, paperSize.height));
+    if (draggingType === 'move') {
+      // Calculate new position based on initial image position and total pointer displacement
+      const newX = initialImageXRef.current + (x - dragStart.x);
+      const newY = initialImageYRef.current + (y - dragStart.y);
 
-          return { ...img, x: constrainedX, y: constrainedY };
-        }
+      // Allow image to move partially off-screen
+      const constrainedX = Math.max(-img.width, Math.min(newX, paperSize.width));
+      const constrainedY = Math.max(-img.height, Math.min(newY, paperSize.height));
 
-        if (draggingType === 'rotate') {
-          const centerX = img.x + img.width / 2;
-          const centerY = img.y + img.height / 2;
-          const start = rotateStartRef.current;
-          const initial = initialRotationRef.current || 0;
-          const current = Math.atan2(y - centerY, x - centerX);
-          const deltaDeg = (current - start) * (180 / Math.PI);
-          const newRot = initial + deltaDeg;
-          return { ...img, rotation: Math.round(newRot) };
-        }
+      updatedImg.x = constrainedX;
+      updatedImg.y = constrainedY;
+    } else if (draggingType === 'rotate') {
+      const centerX = img.x + img.width / 2;
+      const centerY = img.y + img.height / 2;
+      const start = rotateStartRef.current;
+      const initial = initialRotationRef.current || 0;
+      const current = Math.atan2(y - centerY, x - centerX);
+      const deltaDeg = (current - start) * (180 / Math.PI);
+      const newRot = initial + deltaDeg;
+      updatedImg.rotation = Math.round(newRot);
+    } else if (draggingType === 'resize') {
+      const corner = draggingCorner || 'se';
+      const start = resizeStartRef.current || { x: img.x, y: img.y, width: img.width, height: img.height };
+      const anchor = dragAnchorRef.current || { x: dragStart.x, y: dragStart.y };
+      const dx = x - anchor.x;
+      const dy = y - anchor.y;
+      const aspect = start.width / start.height;
+      let newWidth = start.width;
+      let newHeight = start.height;
+      let newX = start.x;
+      let newY = start.y;
 
-        if (draggingType === 'resize') {
-          const corner = draggingCorner || 'se';
-          const start = resizeStartRef.current || { x: img.x, y: img.y, width: img.width, height: img.height };
-          const anchor = dragAnchorRef.current || { x: dragStart.x, y: dragStart.y };
-          const dx = x - anchor.x;
-          const dy = y - anchor.y;
-          const aspect = start.width / start.height;
-          let newWidth = start.width;
-          let newHeight = start.height;
-          let newX = start.x;
-          let newY = start.y;
+      if (corner === 'se') {
+        newWidth = Math.max(50, start.width + dx);
+        newHeight = newWidth / aspect;
+      } else if (corner === 'sw') {
+        newWidth = Math.max(50, start.width - dx);
+        newHeight = newWidth / aspect;
+        newX = start.x + (start.width - newWidth);
+      } else if (corner === 'ne') {
+        newWidth = Math.max(50, start.width + dx);
+        newHeight = newWidth / aspect;
+        newY = start.y + (start.height - newHeight);
+      } else if (corner === 'nw') {
+        newWidth = Math.max(50, start.width - dx);
+        newHeight = newWidth / aspect;
+        newX = start.x + (start.width - newWidth);
+        newY = start.y + (start.height - newHeight);
+      }
 
-          if (corner === 'se') {
-            newWidth = Math.max(50, start.width + dx);
-            newHeight = newWidth / aspect;
-          } else if (corner === 'sw') {
-            newWidth = Math.max(50, start.width - dx);
-            newHeight = newWidth / aspect;
-            newX = start.x + (start.width - newWidth);
-          } else if (corner === 'ne') {
-            newWidth = Math.max(50, start.width + dx);
-            newHeight = newWidth / aspect;
-            newY = start.y + (start.height - newHeight);
-          } else if (corner === 'nw') {
-            newWidth = Math.max(50, start.width - dx);
-            newHeight = newWidth / aspect;
-            newX = start.x + (start.width - newWidth);
-            newY = start.y + (start.height - newHeight);
-          }
+      // Constrain within paper
+      constrainedX = Math.max(0, Math.min(newX, paperSize.width - newWidth));
+      constrainedY = Math.max(0, Math.min(newY, paperSize.height - newHeight));
 
-          // Constrain within paper
-          newX = Math.max(0, Math.min(newX, paperSize.width - newWidth));
-          newY = Math.max(0, Math.min(newY, paperSize.height - newHeight));
+      updatedImg.x = constrainedX;
+      updatedImg.y = constrainedY;
+      updatedImg.width = newWidth;
+      updatedImg.height = newHeight;
+    }
+    
+    // Update the mutable ref directly
+    currentImages[imgIndex] = updatedImg;
 
-          return { ...img, x: newX, y: newY, width: newWidth, height: newHeight };
-        }
-
-        return img;
-      })
-    );
+    // Redraw the canvas immediately
+    drawCanvas(currentImages, selectedId, paperSize, orientation, effectiveScale);
   };
 
   const handleCanvasMouseUp = () => {
@@ -467,6 +479,8 @@ const CollagePrint = () => {
     rotateStartRef.current = 0;
     initialRotationRef.current = 0;
     dragAnchorRef.current = { x: 0, y: 0 };
+    // Officially update React state with the final positions after drag ends
+    setImages([...imagesRef.current]);
   };
 
   const handleDelete = () => {
@@ -595,11 +609,10 @@ const CollagePrint = () => {
           </div>
         </Card.Header>
 
-        <Card.Body
-          className="p-2 flex-grow-1"
-          style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '10px', overflow: 'hidden' }}
-        >
-          {/* Left Sidebar - Controls */}
+                  <Card.Body
+                    className="p-2 flex-grow-1"
+                    style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '10px' }}
+                  >          {/* Left Sidebar - Controls */}
           <div
             style={{
               width: isMobile ? '100%' : '280px',

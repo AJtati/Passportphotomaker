@@ -5,6 +5,7 @@ import Editor from './components/Editor';
 import Preview from './components/Preview';
 import MultiPhoto from './components/MultiPhoto';
 import ImageResizer from './components/ImageResizer';
+import CollagePrint from './components/CollagePrint';
 import Logo from './components/Logo';
 import { jsPDF } from 'jspdf';
 import './styles/App.css';
@@ -54,6 +55,9 @@ function App() {
               <Nav.Item>
                 <Nav.Link eventKey="resize">Change Photo Size</Nav.Link>
               </Nav.Item>
+              <Nav.Item>
+                <Nav.Link eventKey="collage">Collage Print</Nav.Link>
+              </Nav.Item>
             </Nav>
           </Navbar.Collapse>
         </Container>
@@ -63,6 +67,7 @@ function App() {
         {activeTab === 'passport' && <PassportPhotoCreator />}
         {activeTab === 'multi' && <MultiPhoto />}
         {activeTab === 'resize' && <ImageResizer />}
+        {activeTab === 'collage' && <CollagePrint />}
       </Container>
     </>
   );

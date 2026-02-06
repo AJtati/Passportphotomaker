@@ -10,11 +10,14 @@
     "@testing-library/user-event": "^13.5.0",
     "bootstrap": "^5.3.8",
     "jspdf": "^4.0.0",
+    "konva": "^10.2.0",
     "react": "^19.2.4",
     "react-bootstrap": "^2.10.10",
     "react-dom": "^19.2.4",
     "react-image-crop": "^11.0.10",
+    "react-konva": "^19.2.2",
     "react-scripts": "5.0.1",
+    "use-image": "^1.1.4",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
@@ -24,12 +27,6 @@
     "eject": "react-scripts eject",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d build"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
   },
   "browserslist": {
     "production": [
@@ -44,6 +41,8 @@
     ]
   },
   "devDependencies": {
+    "eslint": "^8.57.1",
+    "eslint-config-react-app": "^7.0.1",
     "gh-pages": "^6.3.0"
   }
 }

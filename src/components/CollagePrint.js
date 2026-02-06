@@ -33,6 +33,8 @@ const CollagePrint = () => {
   const rotateStartRef = useRef(0);
   const initialRotationRef = useRef(0);
   const dragAnchorRef = useRef({ x: 0, y: 0 });
+  const initialImageXRef = useRef(0);
+  const initialImageYRef = useRef(0);
 
   // Update window size
   useEffect(() => {
@@ -52,7 +54,7 @@ const CollagePrint = () => {
 
   // Calculate responsive canvas scale - maximize space usage
   const availableWidth = Math.max(300, isMobile ? windowSize.width - 40 : windowSize.width - sidebarWidth - 40);
-  const availableHeight = Math.max(300, isMobile ? windowSize.height - 260 : windowSize.height - 120);
+  const availableHeight = Math.max(300, isMobile ? windowSize.height - 180 : windowSize.height - 120);
 
   const scaleX = availableWidth / paperSize.width;
   const scaleY = availableHeight / paperSize.height;
@@ -77,9 +79,10 @@ const CollagePrint = () => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d', { alpha: true, willReadFrequently: true });
 
-    canvas.width = paperSize.width * window.devicePixelRatio;
-    canvas.height = paperSize.height * window.devicePixelRatio;
-    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2); // Cap DPR at 2 for performance
+    canvas.width = paperSize.width * dpr;
+    canvas.height = paperSize.height * dpr;
+    ctx.scale(dpr, dpr);
 
     // White background
     ctx.fillStyle = 'white';
@@ -198,6 +201,13 @@ const CollagePrint = () => {
     });
   };
 
+  const getEventCoords = (e) => {
+    if (e.touches && e.touches.length) {
+      return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+    }
+    return { clientX: e.clientX, clientY: e.clientY };
+  };
+
   // Helper: Check if point is in circle
   const isPointInCircle = (px, py, cx, cy, radius) => {
     const dx = px - cx;
@@ -233,8 +243,9 @@ const CollagePrint = () => {
 
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / effectiveScale;
-    const y = (e.clientY - rect.top) / effectiveScale;
+    const { clientX, clientY } = getEventCoords(e);
+    const x = (clientX - rect.left) / effectiveScale;
+    const y = (clientY - rect.top) / effectiveScale;
 
     let cursor = 'default';
 
@@ -276,13 +287,15 @@ const CollagePrint = () => {
   // Handle canvas mouse down - detect what was clicked
   const handleCanvasMouseDown = (e) => {
     if (!canvasRef.current) return;
+    e.preventDefault(); // Prevent scrolling on touch
 
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / effectiveScale;
-    const y = (e.clientY - rect.top) / effectiveScale;
+    const { clientX, clientY } = getEventCoords(e);
+    const x = (clientX - rect.left) / effectiveScale;
+    const y = (clientY - rect.top) / effectiveScale;
 
-    setDragStart({ x, y });
+    setDragStart({ x, y }); // Initial click point
 
     // Check all images from top to bottom to find which one was clicked
     let found = false;
@@ -308,6 +321,8 @@ const CollagePrint = () => {
         if (isPointInCircle(x, y, img.x + img.width / 2, img.y + img.height / 2, 14)) {
           setDraggingId(img.id);
           setDraggingType('move');
+          initialImageXRef.current = img.x; // Store initial image x
+          initialImageYRef.current = img.y; // Store initial image y
           return;
         }
 
@@ -344,7 +359,9 @@ const CollagePrint = () => {
         setSelectedId(img.id);
         setDraggingId(img.id);
         setDraggingType('move');
-        setDragStart({ x, y });
+        setDragStart({ x, y }); // Still need this for initial reference
+        initialImageXRef.current = img.x; // Store initial image x
+        initialImageYRef.current = img.y; // Store initial image y
         found = true;
         break;
       }
@@ -358,6 +375,7 @@ const CollagePrint = () => {
   // Handle canvas mouse move (throttled)
   const handleCanvasMouseMove = (e) => {
     if (!draggingId || !canvasRef.current) return;
+    e.preventDefault(); // Prevent scrolling on touch
 
     const now = Date.now();
     if (now - lastMoveTimeRef.current < 16) return; // ~60 FPS throttle
@@ -365,25 +383,27 @@ const CollagePrint = () => {
 
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / effectiveScale;
-    const y = (e.clientY - rect.top) / effectiveScale;
+    const { clientX, clientY } = getEventCoords(e);
+    const x = (clientX - rect.left) / effectiveScale;
+    const y = (clientY - rect.top) / effectiveScale;
 
     setImages((prev) =>
       prev.map((img) => {
         if (img.id !== draggingId) return img;
 
         if (draggingType === 'move') {
-          const dx = x - dragStart.x;
-          const dy = y - dragStart.y;
-
-          let newX = img.x + dx;
-          let newY = img.y + dy;
+          // Calculate new position based on initial image position and total pointer displacement
+          const newX = initialImageXRef.current + (x - dragStart.x);
+          const newY = initialImageYRef.current + (y - dragStart.y);
 
           // Allow image to move partially off-screen
-          newX = Math.max(-img.width, Math.min(newX, paperSize.width));
-          newY = Math.max(-img.height, Math.min(newY, paperSize.height));
+          // Note: These min/max bounds might need fine-tuning if the image appears to jump too much
+          // or goes completely off-screen. The current bounds prevent the top-left corner
+          // from going completely off, but the image might still be mostly off.
+          const constrainedX = Math.max(-img.width, Math.min(newX, paperSize.width));
+          const constrainedY = Math.max(-img.height, Math.min(newY, paperSize.height));
 
-          return { ...img, x: newX, y: newY };
+          return { ...img, x: constrainedX, y: constrainedY };
         }
 
         if (draggingType === 'rotate') {
@@ -437,8 +457,6 @@ const CollagePrint = () => {
         return img;
       })
     );
-
-    setDragStart({ x, y });
   };
 
   const handleCanvasMouseUp = () => {

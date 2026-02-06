@@ -620,13 +620,20 @@ const CollagePrint = () => {
     const prevSelectedId = selectedId;
     setSelectedId(null);
 
-    // Small delay to let canvas redraw without selection
-    setTimeout(() => {
+    const performDownload = () => {
       if (format === 'png' || format === 'jpg') {
-        const link = document.createElement('a');
-        link.href = canvas.toDataURL(`image/${format}`);
-        link.download = `collage.${format}`;
-        link.click();
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `collage.${format}`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+          }
+        }, `image/${format}`);
       } else if (format === 'pdf') {
         const pdf = new jsPDF({
           orientation: orientation === 'landscape' ? 'l' : 'p',
@@ -643,7 +650,14 @@ const CollagePrint = () => {
       }
       // Restore selection
       setSelectedId(prevSelectedId);
-    }, 50);
+    };
+
+    // Restore selection immediately, then perform download (if not PDF which handles it internally)
+    // For image downloads, the user action is direct, so no setTimeout is needed to trigger click.
+    // The previous setTimeout was to allow re-render without selection, but for blob download
+    // that's less critical and might break user gesture requirement.
+    // Let's call it directly.
+    performDownload();
   };
 
   // Z-index manipulation functions

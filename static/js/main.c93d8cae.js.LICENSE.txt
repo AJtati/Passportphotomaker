@@ -4,6 +4,8 @@
 	http://jedwatson.github.io/classnames
 */
 
+/*! Capacitor: https://capacitorjs.com/ - MIT License */
+
 /**
    * @license
    * (c) Dean McNamee <dean@gmail.com>, 2013.

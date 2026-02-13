@@ -24,17 +24,57 @@ const PRESET_PAPER_SIZES = {
   '4x6': { width: 4, height: 6, unit: 'in', name: '4x6 Inch' },
 };
 
+const TAB_ROUTES = {
+  passport: '/passport',
+  multi: '/multi',
+  resize: '/resize',
+  collage: '/collage',
+};
+
+const ROUTE_TO_TAB = Object.fromEntries(
+  Object.entries(TAB_ROUTES).map(([tab, route]) => [route, tab])
+);
+
+const DEFAULT_TAB = 'passport';
+
+const getTabFromHash = () => {
+  const rawHash = window.location.hash.replace(/^#/, '');
+  const normalizedRoute = rawHash.startsWith('/') ? rawHash : `/${rawHash}`;
+  return ROUTE_TO_TAB[normalizedRoute] || DEFAULT_TAB;
+};
+
 // --- Main App Component ---
 function App() {
-  const [activeTab, setActiveTab] = useState('passport');
+  const [activeTab, setActiveTab] = useState(getTabFromHash);
   const [isNavExpanded, setIsNavExpanded] = useState(false); // New state for Navbar collapse
+
+  useEffect(() => {
+    const syncTabWithHash = () => {
+      setActiveTab(getTabFromHash());
+    };
+
+    if (!window.location.hash) {
+      window.location.hash = TAB_ROUTES[DEFAULT_TAB];
+    } else {
+      syncTabWithHash();
+    }
+
+    window.addEventListener('hashchange', syncTabWithHash);
+    return () => window.removeEventListener('hashchange', syncTabWithHash);
+  }, []);
+
+  const handleTabSelect = (tabKey) => {
+    if (!TAB_ROUTES[tabKey]) return;
+    window.location.hash = TAB_ROUTES[tabKey];
+    setIsNavExpanded(false);
+  };
 
   return (
     <>
       <Navbar bg="white" expand="lg" className="mb-4 shadow-sm top-nav" expanded={isNavExpanded} onToggle={setIsNavExpanded}>
         <Container>
           <Navbar.Brand 
-            onClick={() => { setActiveTab('passport'); setIsNavExpanded(false); }} // Close nav on brand click
+            onClick={() => handleTabSelect('passport')}
             style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
           >
             <Logo />
@@ -44,7 +84,7 @@ function App() {
           <Navbar.Collapse id="basic-navbar-nav">
             <Nav 
               activeKey={activeTab} 
-              onSelect={(k) => { setActiveTab(k); setIsNavExpanded(false); }} // Close nav on tab select
+              onSelect={handleTabSelect}
               className="ms-auto"
             >
               <Nav.Item>

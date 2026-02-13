@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Row, Col, Card, Button, Form, DropdownButton, Dropdown } from 'react-bootstrap';
 import { jsPDF } from 'jspdf';
+import { saveBlob, savePdf } from '../utils/fileDownload';
 
 const EDITOR_DPI = 150;
 const EXPORT_DPI = 300;
@@ -770,7 +771,7 @@ const CollagePrint = () => {
     return exportCanvas;
   }, [orientation]);
 
-  const handleDownload = (format) => {
+  const handleDownload = async (format) => {
     if (!images.length) return;
 
     const previousSelectedId = selectedId;
@@ -780,38 +781,31 @@ const CollagePrint = () => {
     const imagesSnapshot = images.map((img) => ({ ...img }));
     const exportCanvas = buildExportCanvas(imagesSnapshot);
 
-    if (format === 'png' || format === 'jpg') {
-      const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
-      const quality = format === 'jpg' ? 0.95 : 1;
-      exportCanvas.toBlob((blob) => {
-        if (!blob) {
-          setSelectedId(previousSelectedId);
-          return;
-        }
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `collage.${format}`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        setSelectedId(previousSelectedId);
-      }, mimeType, quality);
-      return;
-    }
+    try {
+      if (format === 'png' || format === 'jpg') {
+        const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
+        const quality = format === 'jpg' ? 0.95 : 1;
+        const blob = await new Promise((resolve) => exportCanvas.toBlob(resolve, mimeType, quality));
+        if (!blob) throw new Error('Failed to generate image.');
+        await saveBlob(blob, `collage.${format}`, mimeType);
+        return;
+      }
 
-    if (format === 'pdf') {
-      const pdf = new jsPDF({
-        orientation: orientation === 'landscape' ? 'l' : 'p',
-        unit: 'mm',
-        format: 'a4',
-      });
-      const imgData = exportCanvas.toDataURL('image/png');
-      const pageWidth = orientation === 'landscape' ? 297 : 210;
-      const pageHeight = orientation === 'landscape' ? 210 : 297;
-      pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
-      pdf.save('collage.pdf');
+      if (format === 'pdf') {
+        const pdf = new jsPDF({
+          orientation: orientation === 'landscape' ? 'l' : 'p',
+          unit: 'mm',
+          format: 'a4',
+        });
+        const imgData = exportCanvas.toDataURL('image/png');
+        const pageWidth = orientation === 'landscape' ? 297 : 210;
+        const pageHeight = orientation === 'landscape' ? 210 : 297;
+        pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
+        await savePdf(pdf, 'collage.pdf');
+      }
+    } catch (error) {
+      alert(`Download failed: ${error.message}`);
+    } finally {
       setSelectedId(previousSelectedId);
     }
   };

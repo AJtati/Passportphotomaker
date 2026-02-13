@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Row, Col, Card, Form, Button, DropdownButton, Dropdown } from 'react-bootstrap';
 import { jsPDF } from 'jspdf';
+import { saveCanvasImage, savePdf } from '../utils/fileDownload';
 
 const DPI = 300;
 // Swapped for Landscape orientation
@@ -158,31 +159,19 @@ const MultiPhoto = () => {
     });
   };
 
-  const handleDownload = (format) => {
+  const handleDownload = async (format) => {
     const canvas = canvasRef.current;
     if (!canvas) { alert("Preview canvas not ready."); return; }
-    if (format === 'PDF') {
-      const pdf = new jsPDF('l', 'mm', [A4_WIDTH_MM, A4_HEIGHT_MM]);
-      pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', 0, 0, A4_WIDTH_MM, A4_HEIGHT_MM);
-      pdf.save('multi-photo_A4_landscape.pdf');
-    } else {
-      const imageFormat = format === 'JPG' ? 'image/jpeg' : 'image/png';
-      const fileExtension = format.toLowerCase();
-
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.download = `multi-photo_A4_landscape.${fileExtension}`;
-          link.href = url;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-        } else {
-          alert("Failed to generate image for download.");
-        }
-      }, imageFormat, 1.0);
+    try {
+      if (format === 'PDF') {
+        const pdf = new jsPDF('l', 'mm', [A4_WIDTH_MM, A4_HEIGHT_MM]);
+        pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', 0, 0, A4_WIDTH_MM, A4_HEIGHT_MM);
+        await savePdf(pdf, 'multi-photo_A4_landscape.pdf');
+      } else {
+        await saveCanvasImage(canvas, format, `multi-photo_A4_landscape.${format.toLowerCase()}`, 1.0);
+      }
+    } catch (error) {
+      alert(`Download failed: ${error.message}`);
     }
   };
 

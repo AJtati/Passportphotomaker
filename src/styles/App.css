@@ -33,3 +33,38 @@ h1, h2, h3 {
 .form-label {
   font-weight: 600;
 }
+
+.top-nav .navbar-toggler {
+  border: none;
+  box-shadow: none;
+}
+
+.top-nav .navbar-toggler:focus {
+  box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.25);
+}
+
+.top-nav .nav-link {
+  border: none;
+  border-radius: 8px;
+  margin-left: 0.25rem;
+  color: #1c2b36;
+}
+
+.top-nav .nav-link.active {
+  background-color: #e9f2ff;
+  color: #0b5ed7;
+  font-weight: 600;
+}
+
+@media (max-width: 991.98px) {
+  .top-nav .navbar-collapse {
+    border-top: 1px solid #e5e7eb;
+    margin-top: 0.75rem;
+    padding-top: 0.5rem;
+  }
+
+  .top-nav .nav-link {
+    margin: 0.2rem 0;
+    padding: 0.55rem 0.75rem;
+  }
+}

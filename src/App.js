@@ -8,6 +8,7 @@ import ImageResizer from './components/ImageResizer';
 import CollagePrint from './components/CollagePrint';
 import Logo from './components/Logo';
 import { jsPDF } from 'jspdf';
+import { saveCanvasImage, savePdf } from './utils/fileDownload';
 import './styles/App.css';
 
 // --- Constants ---
@@ -30,7 +31,7 @@ function App() {
 
   return (
     <>
-      <Navbar bg="white" expand="lg" className="mb-4 shadow-sm" expanded={isNavExpanded} onToggle={setIsNavExpanded}>
+      <Navbar bg="white" expand="lg" className="mb-4 shadow-sm top-nav" expanded={isNavExpanded} onToggle={setIsNavExpanded}>
         <Container>
           <Navbar.Brand 
             onClick={() => { setActiveTab('passport'); setIsNavExpanded(false); }} // Close nav on brand click
@@ -42,7 +43,6 @@ function App() {
           <Navbar.Toggle aria-controls="basic-navbar-nav" />
           <Navbar.Collapse id="basic-navbar-nav">
             <Nav 
-              variant="tabs" 
               activeKey={activeTab} 
               onSelect={(k) => { setActiveTab(k); setIsNavExpanded(false); }} // Close nav on tab select
               className="ms-auto"
@@ -137,42 +137,20 @@ function PassportPhotoCreator() {
     }
   };
 
-  const handleDownload = (format) => {
+  const handleDownload = async (format) => {
     const canvas = previewCanvasRef.current;
     if (!canvas) { alert("Preview canvas not ready."); return; }
-
-    // Detect iOS
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-
-    if (format === 'PDF') {
-      const orientation = canvas.width > canvas.height ? 'l' : 'p';
-      const pdf = new jsPDF(orientation, paper.unit, [paper.width, paper.height]);
-      pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', 0, 0, paper.width, paper.height);
-      pdf.save('passport_photos.pdf');
-    } else {
-      const imageFormat = format === 'JPG' ? 'image/jpeg' : 'image/png';
-      const fileExtension = format.toLowerCase();
-      
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const url = URL.createObjectURL(blob);
-
-          if (isIOS) {
-            window.open(url, '_blank');
-            alert("iOS: Long-press the image to save it to your device.");
-          } else {
-            const link = document.createElement('a');
-            link.download = `passport_photos.${fileExtension}`;
-            link.href = url;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          }
-          URL.revokeObjectURL(url);
-        } else {
-          alert("Failed to generate image for download.");
-        }
-      }, imageFormat, 1.0);
+    try {
+      if (format === 'PDF') {
+        const orientation = canvas.width > canvas.height ? 'l' : 'p';
+        const pdf = new jsPDF(orientation, paper.unit, [paper.width, paper.height]);
+        pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', 0, 0, paper.width, paper.height);
+        await savePdf(pdf, 'passport_photos.pdf');
+      } else {
+        await saveCanvasImage(canvas, format, `passport_photos.${format.toLowerCase()}`, 1.0);
+      }
+    } catch (error) {
+      alert(`Download failed: ${error.message}`);
     }
   };
 

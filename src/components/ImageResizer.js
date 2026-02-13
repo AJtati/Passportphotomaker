@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Row, Col, Card, Form, Button, InputGroup, DropdownButton, Dropdown, Spinner, Alert } from 'react-bootstrap';
 import { jsPDF } from 'jspdf';
+import { saveBlob } from '../utils/fileDownload';
 
 const ImageResizer = () => {
   const [uploadedImage, setUploadedImage] = useState(null);
@@ -245,15 +246,8 @@ const ImageResizer = () => {
     setPdfTargetSize('');
   };
 
-  const downloadPdfBlob = (blob) => {
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'compressed.pdf';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  const downloadPdfBlob = async (blob) => {
+    await saveBlob(blob, 'compressed.pdf', 'application/pdf');
   };
 
   const loadPdfJsLibrary = () =>
@@ -396,7 +390,7 @@ const ImageResizer = () => {
 
       setCompressedPdfSizeKB(bestBlob.size / 1024);
       setShowPdfConfirmation(true);
-      downloadPdfBlob(bestBlob);
+      await downloadPdfBlob(bestBlob);
     } catch (error) {
       alert(`PDF compression failed: ${error.message}`);
     } finally {
@@ -506,43 +500,32 @@ const ImageResizer = () => {
   };
 
 
-  const handleDownload = (format) => {
+  const handleDownload = async (format) => {
     if (!downloadableBlob) {
       alert("No image to download. Please process an image first.");
       return;
     }
-
-    const link = document.createElement('a');
-    link.download = `resized_image.${format.toLowerCase()}`;
     
     if (format === 'PDF') {
       alert("PDF download is not available for this feature. Please choose JPG or PNG.");
       return;
-    } else {
+    }
+    try {
       const imageFormat = format === 'JPG' ? 'image/jpeg' : 'image/png';
       if (downloadableBlob.type === imageFormat || (format === 'PNG' && downloadableBlob.type === 'image/png') || (format === 'JPG' && downloadableBlob.type === 'image/jpeg')) {
-        const url = URL.createObjectURL(downloadableBlob);
-        link.href = url;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        await saveBlob(downloadableBlob, `resized_image.${format.toLowerCase()}`, imageFormat);
       } else {
         const canvas = previewCanvasRef.current;
         if (!canvas) return;
-        canvas.toBlob((blob) => {
-          if (blob) {
-            const url = URL.createObjectURL(blob);
-            link.href = url;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-          } else {
-            alert("Failed to generate image for download.");
-          }
-        }, imageFormat, 1.0);
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, imageFormat, 1.0));
+        if (!blob) {
+          alert("Failed to generate image for download.");
+          return;
+        }
+        await saveBlob(blob, `resized_image.${format.toLowerCase()}`, imageFormat);
       }
+    } catch (error) {
+      alert(`Download failed: ${error.message}`);
     }
   };
 

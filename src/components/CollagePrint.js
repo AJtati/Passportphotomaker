@@ -2,20 +2,120 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Row, Col, Card, Button, Form, DropdownButton, Dropdown } from 'react-bootstrap';
 import { jsPDF } from 'jspdf';
 
-const DPI = 300;
+const EDITOR_DPI = 150;
+const EXPORT_DPI = 300;
 const A4_WIDTH_MM = 210;
 const A4_HEIGHT_MM = 297;
+const MM_PER_INCH = 25.4;
 
-const A4_PIXELS = {
+const toPixels = (mm, dpi) => Math.round((mm / MM_PER_INCH) * dpi);
+const MAX_EDITOR_IMAGE_DIMENSION = 1400;
+
+const A4_PIXELS_EDITOR = {
   portrait: {
-    width: Math.round((A4_WIDTH_MM / 25.4) * DPI),
-    height: Math.round((A4_HEIGHT_MM / 25.4) * DPI),
+    width: toPixels(A4_WIDTH_MM, EDITOR_DPI),
+    height: toPixels(A4_HEIGHT_MM, EDITOR_DPI),
   },
   landscape: {
-    width: Math.round((A4_HEIGHT_MM / 25.4) * DPI),
-    height: Math.round((A4_WIDTH_MM / 25.4) * DPI),
+    width: toPixels(A4_HEIGHT_MM, EDITOR_DPI),
+    height: toPixels(A4_WIDTH_MM, EDITOR_DPI),
   },
 };
+
+const A4_PIXELS_EXPORT = {
+  portrait: {
+    width: toPixels(A4_WIDTH_MM, EXPORT_DPI),
+    height: toPixels(A4_HEIGHT_MM, EXPORT_DPI),
+  },
+  landscape: {
+    width: toPixels(A4_HEIGHT_MM, EXPORT_DPI),
+    height: toPixels(A4_WIDTH_MM, EXPORT_DPI),
+  },
+};
+
+const autoArrangeImages = (items, paperSize) => {
+  if (!items.length) return items;
+
+  const count = items.length;
+  const paperAspect = paperSize.width / paperSize.height;
+  let cols;
+  let rows;
+
+  if (count === 1) {
+    cols = 1;
+    rows = 1;
+  } else if (count === 2) {
+    // Always place two images side-by-side and vertically centered.
+    cols = 2;
+    rows = 1;
+  } else {
+    cols = Math.max(1, Math.ceil(Math.sqrt(count * paperAspect)));
+    rows = Math.max(1, Math.ceil(count / cols));
+  }
+
+  const margin = Math.max(24, Math.min(paperSize.width, paperSize.height) * 0.06);
+  const gap = Math.max(12, Math.min(paperSize.width, paperSize.height) * 0.02);
+  const usableWidth = paperSize.width - margin * 2;
+  const usableHeight = paperSize.height - margin * 2;
+  const slotWidth = (usableWidth - gap * (cols - 1)) / cols;
+  const slotHeight = (usableHeight - gap * (rows - 1)) / rows;
+  const gridWidth = cols * slotWidth + (cols - 1) * gap;
+  const gridHeight = rows * slotHeight + (rows - 1) * gap;
+  const startX = (paperSize.width - gridWidth) / 2;
+  const startY = (paperSize.height - gridHeight) / 2;
+
+  return items.map((img, index) => {
+    const row = Math.floor(index / cols);
+    const col = index % cols;
+    const slotX = startX + col * (slotWidth + gap);
+    const slotY = startY + row * (slotHeight + gap);
+    const imageAspect = img.imageObj.naturalWidth / img.imageObj.naturalHeight;
+    const rad = (img.rotation * Math.PI) / 180;
+    const absCos = Math.abs(Math.cos(rad));
+    const absSin = Math.abs(Math.sin(rad));
+
+    // Fit rotated bounding box inside slot while preserving original image aspect ratio.
+    const denominatorW = imageAspect * absCos + absSin;
+    const denominatorH = imageAspect * absSin + absCos;
+    const heightFromWidthLimit = slotWidth / Math.max(denominatorW, 0.0001);
+    const heightFromHeightLimit = slotHeight / Math.max(denominatorH, 0.0001);
+    const height = Math.max(20, Math.min(heightFromWidthLimit, heightFromHeightLimit));
+    const width = imageAspect * height;
+
+    const centerX = slotX + slotWidth / 2;
+    const centerY = slotY + slotHeight / 2;
+
+    return {
+      ...img,
+      x: centerX - width / 2,
+      y: centerY - height / 2,
+      width,
+      height,
+    };
+  });
+};
+
+const createEditorPreviewImage = (sourceImage) =>
+  new Promise((resolve) => {
+    const maxDim = Math.max(sourceImage.naturalWidth, sourceImage.naturalHeight);
+    if (maxDim <= MAX_EDITOR_IMAGE_DIMENSION) {
+      resolve(sourceImage);
+      return;
+    }
+
+    const scale = MAX_EDITOR_IMAGE_DIMENSION / maxDim;
+    const targetWidth = Math.max(1, Math.round(sourceImage.naturalWidth * scale));
+    const targetHeight = Math.max(1, Math.round(sourceImage.naturalHeight * scale));
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d');
+    tempCanvas.width = targetWidth;
+    tempCanvas.height = targetHeight;
+    tempCtx.drawImage(sourceImage, 0, 0, targetWidth, targetHeight);
+
+    const previewImage = new Image();
+    previewImage.onload = () => resolve(previewImage);
+    previewImage.src = tempCanvas.toDataURL('image/jpeg', 0.9);
+  });
 
 const CollagePrint = () => {
   const [images, setImages] = useState([]);
@@ -50,7 +150,13 @@ const CollagePrint = () => {
     return () => window.removeEventListener('resize', updateSize);
   }, []);
   
-  const paperSize = A4_PIXELS[orientation];
+  const paperSize = A4_PIXELS_EDITOR[orientation];
+
+  useEffect(() => {
+    if (!imagesRef.current.length) return;
+    setImages((prev) => autoArrangeImages(prev, paperSize));
+    setSelectedId(null);
+  }, [orientation, paperSize]);
 
   // Responsive layout flags
   const isMobile = windowSize.width <= 700;
@@ -80,16 +186,21 @@ const CollagePrint = () => {
     imagesRef.current = images;
   }, [images]);
 
-  const drawCanvas = useCallback((currentImages, currentSelectedId, currentPaperSize, currentOrientation, currentEffectiveScale) => {
+  const drawCanvas = useCallback((currentImages, currentSelectedId, currentPaperSize) => {
     if (!canvasRef.current || !Array.isArray(currentImages)) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d', { alpha: true, willReadFrequently: true });
 
-    const dpr = Math.min(window.devicePixelRatio || 1, 2); // Cap DPR at 2 for performance
+    const isInteracting = Boolean(draggingId || activeButtonId);
+    const dpr = isInteracting
+      ? (isMobile ? 0.85 : 1)
+      : Math.min(window.devicePixelRatio || 1, isMobile ? 1.25 : 1.5);
     canvas.width = currentPaperSize.width * dpr;
     canvas.height = currentPaperSize.height * dpr;
-    ctx.scale(dpr, dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = isInteracting ? 'low' : 'high';
 
     // White background
     ctx.fillStyle = 'white';
@@ -110,10 +221,11 @@ const CollagePrint = () => {
       const cy = img.y + img.height / 2;
       ctx.translate(cx, cy);
       ctx.rotate((img.rotation * Math.PI) / 180);
-      ctx.drawImage(img.imageObj, -img.width / 2, -img.height / 2, img.width, img.height);
+      const editorImageObj = img.editorImageObj || img.imageObj;
+      ctx.drawImage(editorImageObj, -img.width / 2, -img.height / 2, img.width, img.height);
 
       // Selection border and interactive handles (drawn in rotated space)
-      if (isSelected) {
+      if (isSelected && !(isMobile && isInteracting)) {
         ctx.strokeStyle = '#0066ff';
         ctx.lineWidth = 3;
         ctx.setLineDash([5, 5]);
@@ -167,7 +279,7 @@ const CollagePrint = () => {
 
       ctx.restore();
     });
-  }, [dynamicHandleSize]);
+  }, [dynamicHandleSize, draggingId, activeButtonId, isMobile]);
 
   const moveImageByStep = useCallback((dx, dy) => {
     if (!selectedId || !imagesRef.current || imagesRef.current.length === 0) return;
@@ -185,8 +297,8 @@ const CollagePrint = () => {
     img.y = Math.max(-img.height, Math.min(img.y, paperSize.height));
 
     currentImages[imgIndex] = img; // Update the mutable ref
-    drawCanvas(currentImages, selectedId, paperSize, orientation, effectiveScale);
-  }, [selectedId, paperSize, orientation, effectiveScale, drawCanvas]);
+    drawCanvas(currentImages, selectedId, paperSize);
+  }, [selectedId, paperSize, drawCanvas]);
 
   const resizeImageByStep = useCallback((delta) => {
     if (!selectedId || !imagesRef.current || imagesRef.current.length === 0) return;
@@ -209,8 +321,8 @@ const CollagePrint = () => {
     img.height = newHeight;
 
     currentImages[imgIndex] = img; // Update the mutable ref
-    drawCanvas(currentImages, selectedId, paperSize, orientation, effectiveScale);
-  }, [selectedId, paperSize, orientation, effectiveScale, drawCanvas]);
+    drawCanvas(currentImages, selectedId, paperSize);
+  }, [selectedId, paperSize, drawCanvas]);
   
   const startContinuousAction = useCallback((buttonId, actionFn, ...args) => {
     setActiveButtonId(buttonId);
@@ -247,48 +359,62 @@ const CollagePrint = () => {
   useEffect(() => {
     // Only call drawCanvas if images is an array
     if (Array.isArray(images)) {
-      drawCanvas(images, selectedId, paperSize, orientation, effectiveScale);
+      drawCanvas(images, selectedId, paperSize);
     }
-  }, [images, selectedId, paperSize, orientation, effectiveScale, drawCanvas]);
+  }, [images, selectedId, paperSize, drawCanvas]);
 
-  const handleFileChange = (event) => {
-    const files = event.target.files;
-    if (!files) return;
+  const handleFileChange = async (event) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
 
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const imageObj = new Image();
-        imageObj.onload = () => {
-          const aspectRatio = imageObj.naturalWidth / imageObj.naturalHeight;
-          const maxWidth = paperSize.width * 0.8;
-          const maxHeight = paperSize.height * 0.6;
+    const imageFiles = files.filter((file) => file.type.startsWith('image/'));
+    if (!imageFiles.length) {
+      event.target.value = '';
+      return;
+    }
 
-          let width = maxWidth;
-          let height = width / aspectRatio;
+    try {
+      const loadedImages = await Promise.all(
+        imageFiles.map(
+          (file, index) =>
+            new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = (loadEvent) => {
+                const imageObj = new Image();
+                imageObj.onload = async () => {
+                  const editorImageObj = await createEditorPreviewImage(imageObj);
+                  resolve({
+                    id: Date.now() + Math.random() + index,
+                    imageObj,
+                    editorImageObj,
+                    x: 0,
+                    y: 0,
+                    width: imageObj.naturalWidth,
+                    height: imageObj.naturalHeight,
+                    rotation: 0,
+                  });
+                };
+                imageObj.onerror = () => reject(new Error('Failed to load image.'));
+                imageObj.src = loadEvent.target.result;
+              };
+              reader.onerror = () => reject(new Error('Failed to read file.'));
+              reader.readAsDataURL(file);
+            })
+        )
+      );
 
-          if (height > maxHeight) {
-            height = maxHeight;
-            width = height * aspectRatio;
-          }
-
-          const newImage = {
-            id: Date.now() + Math.random(),
-            imageObj,
-            x: 50,
-            y: 50,
-            width,
-            height,
-            rotation: 0,
-          };
-
-          setImages((prev) => [...prev, newImage]);
-        };
-        imageObj.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    });
+      setImages((prev) => autoArrangeImages([...prev, ...loadedImages], paperSize));
+      setSelectedId(null);
+    } catch {
+      alert('One or more images could not be loaded. Please try again.');
+    }
+    event.target.value = '';
   };
+
+  const handleAutoArrange = useCallback(() => {
+    setImages((prev) => autoArrangeImages(prev, paperSize));
+    setSelectedId(null);
+  }, [paperSize]);
 
   const getEventCoords = (e) => {
     if (e.touches && e.touches.length) {
@@ -467,7 +593,8 @@ const CollagePrint = () => {
     e.preventDefault(); // Prevent scrolling on touch
 
     const now = Date.now();
-    if (now - lastMoveTimeRef.current < 16) return; // ~60 FPS throttle
+    const throttleMs = isMobile ? 24 : 16;
+    if (now - lastMoveTimeRef.current < throttleMs) return;
     lastMoveTimeRef.current = now;
 
     const canvas = canvasRef.current;
@@ -548,8 +675,8 @@ const CollagePrint = () => {
     currentImages[imgIndex] = updatedImg;
 
     // Redraw the canvas immediately
-    drawCanvas(currentImages, selectedId, paperSize, orientation, effectiveScale);
-  }, [draggingId, effectiveScale, dragStart, paperSize, drawCanvas]);
+    drawCanvas(currentImages, selectedId, paperSize);
+  }, [draggingId, effectiveScale, dragStart, paperSize, drawCanvas, isMobile]);
 
   const handleCanvasMouseUp = useCallback(() => {
     setDraggingId(null);
@@ -612,52 +739,81 @@ const CollagePrint = () => {
     );
   };
   
-  const handleDownload = (format) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  const buildExportCanvas = useCallback((imagesToRender) => {
+    const exportCanvas = document.createElement('canvas');
+    const exportSize = A4_PIXELS_EXPORT[orientation];
+    const scale = EXPORT_DPI / EDITOR_DPI;
+    const exportCtx = exportCanvas.getContext('2d');
 
-    // Deselect image so selection handles don't appear in download
-    const prevSelectedId = selectedId;
+    exportCanvas.width = exportSize.width;
+    exportCanvas.height = exportSize.height;
+
+    exportCtx.fillStyle = 'white';
+    exportCtx.fillRect(0, 0, exportSize.width, exportSize.height);
+    exportCtx.strokeStyle = '#ddd';
+    exportCtx.lineWidth = 2 * scale;
+    exportCtx.strokeRect(0, 0, exportSize.width, exportSize.height);
+
+    imagesToRender.forEach((img) => {
+      const width = img.width * scale;
+      const height = img.height * scale;
+      const x = img.x * scale;
+      const y = img.y * scale;
+
+      exportCtx.save();
+      exportCtx.translate(x + width / 2, y + height / 2);
+      exportCtx.rotate((img.rotation * Math.PI) / 180);
+      exportCtx.drawImage(img.imageObj, -width / 2, -height / 2, width, height);
+      exportCtx.restore();
+    });
+
+    return exportCanvas;
+  }, [orientation]);
+
+  const handleDownload = (format) => {
+    if (!images.length) return;
+
+    const previousSelectedId = selectedId;
     setSelectedId(null);
 
-    const performDownload = () => {
-      if (format === 'png' || format === 'jpg') {
-        canvas.toBlob((blob) => {
-          if (blob) {
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `collage.${format}`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-          }
-        }, `image/${format}`);
-      } else if (format === 'pdf') {
-        const pdf = new jsPDF({
-          orientation: orientation === 'landscape' ? 'l' : 'p',
-          unit: 'mm',
-          format: 'a4',
-        });
+    // Snapshot current geometry so export is deterministic and never includes UI selection overlays.
+    const imagesSnapshot = images.map((img) => ({ ...img }));
+    const exportCanvas = buildExportCanvas(imagesSnapshot);
 
-        const imgData = canvas.toDataURL('image/png');
-        const pageWidth = orientation === 'landscape' ? 297 : 210;
-        const pageHeight = orientation === 'landscape' ? 210 : 297;
+    if (format === 'png' || format === 'jpg') {
+      const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
+      const quality = format === 'jpg' ? 0.95 : 1;
+      exportCanvas.toBlob((blob) => {
+        if (!blob) {
+          setSelectedId(previousSelectedId);
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `collage.${format}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        setSelectedId(previousSelectedId);
+      }, mimeType, quality);
+      return;
+    }
 
-        pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
-        pdf.save('collage.pdf');
-      }
-      // Restore selection
-      setSelectedId(prevSelectedId);
-    };
-
-    // Restore selection immediately, then perform download (if not PDF which handles it internally)
-    // For image downloads, the user action is direct, so no setTimeout is needed to trigger click.
-    // The previous setTimeout was to allow re-render without selection, but for blob download
-    // that's less critical and might break user gesture requirement.
-    // Let's call it directly.
-    performDownload();
+    if (format === 'pdf') {
+      const pdf = new jsPDF({
+        orientation: orientation === 'landscape' ? 'l' : 'p',
+        unit: 'mm',
+        format: 'a4',
+      });
+      const imgData = exportCanvas.toDataURL('image/png');
+      const pageWidth = orientation === 'landscape' ? 297 : 210;
+      const pageHeight = orientation === 'landscape' ? 210 : 297;
+      pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
+      pdf.save('collage.pdf');
+      setSelectedId(previousSelectedId);
+    }
   };
 
   // Z-index manipulation functions
@@ -751,6 +907,16 @@ const CollagePrint = () => {
                 size="sm"
               />
             </div>
+
+            <Button
+              variant="outline-primary"
+              size="sm"
+              onClick={handleAutoArrange}
+              disabled={images.length === 0}
+              className="w-100"
+            >
+              Auto Arrange
+            </Button>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: controlSpacing }}>
               <Button

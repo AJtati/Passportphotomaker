@@ -74,8 +74,30 @@ const Settings = ({
             <option value="custom">Custom</option>
           </Form.Select>
           <Row>
-            <Col><InputGroup><Form.Control type="number" name="width" value={passport.width} onChange={handleCustomPassportChange} /></InputGroup></Col>
-            <Col><InputGroup><Form.Control type="number" name="height" value={passport.height} onChange={handleCustomPassportChange} /></InputGroup></Col>
+            <Col>
+              <InputGroup>
+                <Form.Control
+                  type="number"
+                  name="width"
+                  min="0.1"
+                  step="0.1"
+                  value={passport.width}
+                  onChange={handleCustomPassportChange}
+                />
+              </InputGroup>
+            </Col>
+            <Col>
+              <InputGroup>
+                <Form.Control
+                  type="number"
+                  name="height"
+                  min="0.1"
+                  step="0.1"
+                  value={passport.height}
+                  onChange={handleCustomPassportChange}
+                />
+              </InputGroup>
+            </Col>
             <Col>
               <Form.Select name="unit" value={passport.unit} onChange={handleCustomPassportChange}>
                 <option value="mm">mm</option>

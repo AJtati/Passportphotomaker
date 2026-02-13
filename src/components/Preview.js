@@ -39,8 +39,22 @@ const Preview = forwardRef(({ paper, passport, croppedImage, addBorder, dpi }, r
     const photoWidthPx = convertToPixels(passport.width, passport.unit, dpi);
     const photoHeightPx = convertToPixels(passport.height, passport.unit, dpi);
 
+    if (paperWidthPx <= 0 || paperHeightPx <= 0 || photoWidthPx <= 0 || photoHeightPx <= 0) {
+      canvas.width = Math.max(1, paperWidthPx || 1);
+      canvas.height = Math.max(1, paperHeightPx || 1);
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#dc3545';
+      ctx.textAlign = 'center';
+      ctx.font = `${Math.min(28, canvas.width / 12)}px Arial`;
+      ctx.fillText('Enter valid positive dimensions', canvas.width / 2, canvas.height / 2);
+      return;
+    }
+
     canvas.width = paperWidthPx;
     canvas.height = paperHeightPx;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, canvas.width, canvas.height);

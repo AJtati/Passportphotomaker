@@ -88,6 +88,13 @@ function PassportPhotoCreator() {
   const [paperPreset, setPaperPreset] = useState('a4');
   const [addBorder, setAddBorder] = useState(false);
 
+  const sanitizePassport = (value) => {
+    const safeWidth = Number.isFinite(value?.width) ? Math.max(0.1, value.width) : passport.width;
+    const safeHeight = Number.isFinite(value?.height) ? Math.max(0.1, value.height) : passport.height;
+    const safeUnit = value?.unit === 'in' || value?.unit === 'mm' ? value.unit : passport.unit;
+    return { ...value, width: safeWidth, height: safeHeight, unit: safeUnit };
+  };
+
   const handleImageUpload = (file) => {
     if (file && file.type.startsWith('image/')) {
       const reader = new FileReader();
@@ -103,13 +110,18 @@ function PassportPhotoCreator() {
 
   const handleSettingsChange = (newSettings) => {
     let shouldResetCrop = false;
-    if (newSettings.passport) { setPassport(newSettings.passport); shouldResetCrop = true; }
+    if (newSettings.passport) {
+      setPassport(sanitizePassport(newSettings.passport));
+      shouldResetCrop = true;
+    }
     if (newSettings.paper) setPaper(newSettings.paper);
     if (newSettings.addBorder !== undefined) setAddBorder(newSettings.addBorder);
     if (newSettings.passportPreset) {
       if (newSettings.passportPreset !== passportPreset) shouldResetCrop = true;
       setPassportPreset(newSettings.passportPreset);
-      if (PRESET_PASSPORT_SIZES[newSettings.passportPreset]) setPassport(PRESET_PASSPORT_SIZES[newSettings.passportPreset]);
+      if (PRESET_PASSPORT_SIZES[newSettings.passportPreset]) {
+        setPassport(sanitizePassport(PRESET_PASSPORT_SIZES[newSettings.passportPreset]));
+      }
     }
     if (newSettings.paperPreset) {
       setPaperPreset(newSettings.paperPreset);
@@ -174,6 +186,7 @@ function PassportPhotoCreator() {
         />
         <Editor 
           uploadedImage={uploadedImage} onCrop={handleCropApplied} passportDimensions={passport}
+          dpi={DPI}
           key={passport.width / passport.height} 
         />
       </Col>

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Row, Col, Card, Form, Button, InputGroup, DropdownButton, Dropdown, Spinner, Alert } from 'react-bootstrap';
+import { jsPDF } from 'jspdf';
 
 const ImageResizer = () => {
   const [uploadedImage, setUploadedImage] = useState(null);
@@ -22,11 +23,27 @@ const ImageResizer = () => {
   const [showDimensionConfirmation, setShowDimensionConfirmation] = useState(false);
   const [showSizeConfirmation, setShowSizeConfirmation] = useState(false);
 
+  const [uploadedPdfFile, setUploadedPdfFile] = useState(null);
+  const [originalPdfSizeKB, setOriginalPdfSizeKB] = useState(null);
+  const [pdfTargetSize, setPdfTargetSize] = useState('');
+  const [pdfTargetSizeUnit, setPdfTargetSizeUnit] = useState('MB');
+  const [pdfSuggestedSizes, setPdfSuggestedSizes] = useState([]);
+  const [processingPdfCompression, setProcessingPdfCompression] = useState(false);
+  const [compressedPdfSizeKB, setCompressedPdfSizeKB] = useState(null);
+  const [showPdfConfirmation, setShowPdfConfirmation] = useState(false);
+
   const previewCanvasRef = useRef(null);
   const imageRef = useRef(null);
   const dimensionSectionRef = useRef(null);
   const sizeSectionRef = useRef(null);
   const finalPreviewSectionRef = useRef(null);
+
+  useEffect(() => {
+    if (showPdfConfirmation) {
+      const timer = setTimeout(() => setShowPdfConfirmation(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showPdfConfirmation]);
 
   // Effect to load image and set original dimensions
   useEffect(() => {
@@ -157,6 +174,234 @@ const ImageResizer = () => {
 
   const handleTargetFileSizeUnitChange = (e) => {
     setTargetFileSizeUnit(e.target.value);
+  };
+
+  const formatKB = (sizeInKB) => {
+    if (sizeInKB >= 1024) return `${(sizeInKB / 1024).toFixed(2)} MB`;
+    return `${sizeInKB.toFixed(2)} KB`;
+  };
+
+  const sizeToBytes = (size, unit) => {
+    const numericSize = parseFloat(size);
+    if (isNaN(numericSize) || numericSize <= 0) return null;
+    return unit === 'MB' ? numericSize * 1024 * 1024 : numericSize * 1024;
+  };
+
+  const handlePdfUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      alert('Please upload a valid PDF file.');
+      return;
+    }
+
+    const sizeKB = file.size / 1024;
+    setUploadedPdfFile(file);
+    setOriginalPdfSizeKB(sizeKB);
+    setPdfTargetSize('');
+    setPdfTargetSizeUnit(sizeKB >= 1024 ? 'MB' : 'KB');
+    setCompressedPdfSizeKB(null);
+    setShowPdfConfirmation(false);
+
+    const factors = [0.9, 0.75, 0.6, 0.5, 0.35];
+    const suggestions = factors
+      .map((factor) => Math.max(10, sizeKB * factor))
+      .filter((value) => value < sizeKB)
+      .slice(0, 4);
+    setPdfSuggestedSizes(suggestions);
+  };
+
+  const handlePdfTargetSizeChange = (e) => {
+    if (!originalPdfSizeKB) {
+      setPdfTargetSize('');
+      return;
+    }
+
+    const value = e.target.value;
+    if (value === '') {
+      setPdfTargetSize('');
+      return;
+    }
+
+    const bytes = sizeToBytes(value, pdfTargetSizeUnit);
+    if (!bytes) {
+      setPdfTargetSize(value);
+      return;
+    }
+
+    const originalBytes = originalPdfSizeKB * 1024;
+    if (bytes > originalBytes) {
+      alert('Target size cannot be greater than the original PDF size.');
+      setPdfTargetSize('');
+      return;
+    }
+
+    setPdfTargetSize(value);
+  };
+
+  const handlePdfTargetUnitChange = (e) => {
+    setPdfTargetSizeUnit(e.target.value);
+    setPdfTargetSize('');
+  };
+
+  const downloadPdfBlob = (blob) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'compressed.pdf';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const loadPdfJsLibrary = () =>
+    new Promise((resolve, reject) => {
+      const candidates = [
+        {
+          scriptSrc: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+          workerSrc: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
+        },
+        {
+          scriptSrc: 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js',
+          workerSrc: 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js',
+        },
+      ];
+
+      if (window.pdfjsLib) {
+        resolve({ pdfjsLib: window.pdfjsLib, workerSrc: candidates[0].workerSrc });
+        return;
+      }
+
+      const tryCandidate = (index) => {
+        if (index >= candidates.length) {
+          reject(new Error('Failed to load PDF engine.'));
+          return;
+        }
+
+        const candidate = candidates[index];
+        const existingScript = document.querySelector(`script[data-pdfjs-src="${candidate.scriptSrc}"]`);
+        if (existingScript) {
+          if (window.pdfjsLib) {
+            resolve({ pdfjsLib: window.pdfjsLib, workerSrc: candidate.workerSrc });
+            return;
+          }
+          existingScript.addEventListener(
+            'load',
+            () => {
+              if (window.pdfjsLib) resolve({ pdfjsLib: window.pdfjsLib, workerSrc: candidate.workerSrc });
+              else tryCandidate(index + 1);
+            },
+            { once: true }
+          );
+          existingScript.addEventListener('error', () => tryCandidate(index + 1), { once: true });
+          return;
+        }
+
+        const script = document.createElement('script');
+        script.src = candidate.scriptSrc;
+        script.async = true;
+        script.dataset.pdfjsSrc = candidate.scriptSrc;
+        script.onload = () => {
+          if (window.pdfjsLib) resolve({ pdfjsLib: window.pdfjsLib, workerSrc: candidate.workerSrc });
+          else tryCandidate(index + 1);
+        };
+        script.onerror = () => tryCandidate(index + 1);
+        document.body.appendChild(script);
+      };
+
+      tryCandidate(0);
+    });
+
+  const buildCompressedPdfBlob = async (pdfDocument, quality, renderScale) => {
+    let doc = null;
+    for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
+      const page = await pdfDocument.getPage(pageNum);
+      const viewport = page.getViewport({ scale: renderScale });
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d', { alpha: false });
+      canvas.width = Math.max(1, Math.floor(viewport.width));
+      canvas.height = Math.max(1, Math.floor(viewport.height));
+      await page.render({ canvasContext: context, viewport }).promise;
+
+      const imageData = canvas.toDataURL('image/jpeg', quality);
+      const orientation = viewport.width > viewport.height ? 'l' : 'p';
+
+      if (!doc) {
+        doc = new jsPDF({
+          orientation,
+          unit: 'pt',
+          format: [viewport.width, viewport.height],
+          compress: true,
+        });
+        doc.addImage(imageData, 'JPEG', 0, 0, viewport.width, viewport.height, undefined, 'FAST');
+      } else {
+        doc.addPage([viewport.width, viewport.height], orientation);
+        doc.addImage(imageData, 'JPEG', 0, 0, viewport.width, viewport.height, undefined, 'FAST');
+      }
+    }
+
+    return doc.output('blob');
+  };
+
+  const compressPdf = async () => {
+    if (!uploadedPdfFile) {
+      alert('Please upload a PDF first.');
+      return;
+    }
+
+    setProcessingPdfCompression(true);
+    try {
+      const { pdfjsLib, workerSrc } = await loadPdfJsLibrary();
+      if (!pdfjsLib) {
+        throw new Error('PDF engine unavailable.');
+      }
+      pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
+      const fileBytes = await uploadedPdfFile.arrayBuffer();
+      const loadingTask = pdfjsLib.getDocument({ data: fileBytes });
+      const pdfDocument = await loadingTask.promise;
+
+      const targetBytes = pdfTargetSize ? sizeToBytes(pdfTargetSize, pdfTargetSizeUnit) : null;
+      const tries = targetBytes
+        ? [
+            { quality: 0.92, scale: 1.8 },
+            { quality: 0.85, scale: 1.6 },
+            { quality: 0.78, scale: 1.4 },
+            { quality: 0.7, scale: 1.25 },
+            { quality: 0.62, scale: 1.1 },
+            { quality: 0.55, scale: 1.0 },
+          ]
+        : [
+            { quality: 0.88, scale: 1.6 },
+            { quality: 0.8, scale: 1.4 },
+            { quality: 0.74, scale: 1.2 },
+          ];
+
+      let bestBlob = null;
+      for (const attempt of tries) {
+        const blob = await buildCompressedPdfBlob(pdfDocument, attempt.quality, attempt.scale);
+        if (!bestBlob || blob.size < bestBlob.size) bestBlob = blob;
+        if (targetBytes && blob.size <= targetBytes) {
+          bestBlob = blob;
+          break;
+        }
+      }
+
+      if (!bestBlob) {
+        alert('Unable to compress this PDF.');
+        setProcessingPdfCompression(false);
+        return;
+      }
+
+      setCompressedPdfSizeKB(bestBlob.size / 1024);
+      setShowPdfConfirmation(true);
+      downloadPdfBlob(bestBlob);
+    } catch (error) {
+      alert(`PDF compression failed: ${error.message}`);
+    } finally {
+      setProcessingPdfCompression(false);
+    }
   };
 
   const drawPreviewCanvas = () => {
@@ -383,6 +628,88 @@ const ImageResizer = () => {
                 </div>
               </>
             )}
+
+            <hr />
+
+            <div>
+              <h6 className="mb-3">PDF Compression</h6>
+              <Form.Group className="mb-3">
+                <Form.Label>Upload PDF</Form.Label>
+                <Form.Control type="file" accept="application/pdf,.pdf" onChange={handlePdfUpload} />
+              </Form.Group>
+
+              {uploadedPdfFile && (
+                <>
+                  <p className="mb-2">
+                    Original PDF Size: <strong>{formatKB(originalPdfSizeKB)}</strong>
+                  </p>
+
+                  <Form.Group className="mb-3">
+                    <Form.Label>Target PDF Size (optional)</Form.Label>
+                    <InputGroup>
+                      <Form.Control
+                        type="number"
+                        step="0.1"
+                        value={pdfTargetSize}
+                        onChange={handlePdfTargetSizeChange}
+                        placeholder="Leave blank for auto best compression"
+                      />
+                      <Form.Select value={pdfTargetSizeUnit} onChange={handlePdfTargetUnitChange} style={{ maxWidth: '80px' }}>
+                        <option value="KB">KB</option>
+                        <option value="MB">MB</option>
+                      </Form.Select>
+                    </InputGroup>
+                    <Form.Text className="text-muted">
+                      Target size cannot be greater than original PDF size.
+                    </Form.Text>
+                  </Form.Group>
+
+                  {pdfSuggestedSizes.length > 0 && (
+                    <div className="mb-3">
+                      <Form.Label>Suggested Sizes</Form.Label>
+                      <div className="d-flex flex-wrap gap-2">
+                        {pdfSuggestedSizes.map((sizeKB, index) => (
+                          <Button
+                            key={`${sizeKB}-${index}`}
+                            variant="outline-secondary"
+                            size="sm"
+                            onClick={() => {
+                              if (sizeKB >= 1024) {
+                                setPdfTargetSize((sizeKB / 1024).toFixed(2));
+                                setPdfTargetSizeUnit('MB');
+                              } else {
+                                setPdfTargetSize(sizeKB.toFixed(0));
+                                setPdfTargetSizeUnit('KB');
+                              }
+                            }}
+                          >
+                            {formatKB(sizeKB)}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="d-grid gap-2 mt-3">
+                    <Button variant="primary" onClick={compressPdf} disabled={processingPdfCompression}>
+                      {processingPdfCompression ? <Spinner animation="border" size="sm" /> : 'Compress PDF'}
+                    </Button>
+                  </div>
+
+                  {showPdfConfirmation && (
+                    <Alert variant="success" className="mt-3">
+                      PDF compressed and downloaded successfully.
+                    </Alert>
+                  )}
+
+                  {compressedPdfSizeKB && (
+                    <p className="mt-2 mb-0 text-muted">
+                      Compressed PDF Size: {formatKB(compressedPdfSizeKB)}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
           </Card.Body>
         </Card>
       </Col>

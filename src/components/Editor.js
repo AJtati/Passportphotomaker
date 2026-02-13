@@ -3,44 +3,59 @@ import { Card, Button, Alert } from 'react-bootstrap';
 import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 
+const convertToPixels = (value, unit, dpi) => {
+  if (unit === 'in') return value * dpi;
+  if (unit === 'mm') return (value / 25.4) * dpi;
+  return value;
+};
+
 // Helper to generate the cropped image
-function getCroppedImg(image, crop, fileName) {
+function getCroppedImg(image, crop) {
   const canvas = document.createElement('canvas');
   const scaleX = image.naturalWidth / image.width;
   const scaleY = image.naturalHeight / image.height;
 
   // Calculate the actual pixel dimensions of the cropped region
-  const actualCropWidth = crop.width * scaleX;
-  const actualCropHeight = crop.height * scaleY;
+  const actualCropX = Math.round(crop.x * scaleX);
+  const actualCropY = Math.round(crop.y * scaleY);
+  const actualCropWidth = Math.max(1, Math.round(crop.width * scaleX));
+  const actualCropHeight = Math.max(1, Math.round(crop.height * scaleY));
 
   canvas.width = actualCropWidth;
   canvas.height = actualCropHeight;
   const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
 
   ctx.drawImage(
     image,
-    crop.x * scaleX,
-    crop.y * scaleY,
-    actualCropWidth, // Use actual pixel dimensions for source width
-    actualCropHeight, // Use actual pixel dimensions for source height
+    actualCropX,
+    actualCropY,
+    actualCropWidth,
+    actualCropHeight,
     0,
     0,
-    actualCropWidth, // Use actual pixel dimensions for destination width
-    actualCropHeight // Use actual pixel dimensions for destination height
+    actualCropWidth,
+    actualCropHeight
   );
 
   return new Promise((resolve) => {
-    resolve(canvas.toDataURL('image/png')); // PNG is lossless
+    resolve({
+      dataUrl: canvas.toDataURL('image/png'), // PNG is lossless
+      width: actualCropWidth,
+      height: actualCropHeight,
+    });
   });
 }
 
 
-const Editor = ({ uploadedImage, onCrop, passportDimensions }) => {
+const Editor = ({ uploadedImage, onCrop, passportDimensions, dpi = 300 }) => {
   const [crop, setCrop] = useState();
   const [completedCrop, setCompletedCrop] = useState(null);
   const imgRef = useRef(null);
   const [aspect, setAspect] = useState(1);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [qualityWarning, setQualityWarning] = useState('');
 
   useEffect(() => {
     if (passportDimensions) {
@@ -76,8 +91,19 @@ const Editor = ({ uploadedImage, onCrop, passportDimensions }) => {
 
   const handleCrop = async () => {
     if (completedCrop?.width && completedCrop?.height && imgRef.current) {
-      const croppedImageUrl = await getCroppedImg(imgRef.current, completedCrop, 'newFile.png');
-      onCrop(croppedImageUrl);
+      const cropped = await getCroppedImg(imgRef.current, completedCrop);
+      const minWidthPx = convertToPixels(passportDimensions.width, passportDimensions.unit, dpi);
+      const minHeightPx = convertToPixels(passportDimensions.height, passportDimensions.unit, dpi);
+
+      if (cropped.width < minWidthPx || cropped.height < minHeightPx) {
+        setQualityWarning(
+          `Crop is ${cropped.width}x${cropped.height}px. For best 300 DPI print quality, use at least ${Math.round(minWidthPx)}x${Math.round(minHeightPx)}px.`
+        );
+      } else {
+        setQualityWarning('');
+      }
+
+      onCrop(cropped.dataUrl);
       setShowConfirmation(true);
     }
   };
@@ -104,6 +130,11 @@ const Editor = ({ uploadedImage, onCrop, passportDimensions }) => {
             {showConfirmation && (
               <Alert variant="success" className="mt-3">
                 Crop Applied!
+              </Alert>
+            )}
+            {qualityWarning && (
+              <Alert variant="warning" className="mt-3 mb-0">
+                {qualityWarning}
               </Alert>
             )}
             <p className="text-muted small mt-2">Adjust the selection on your photo. The frame is locked to the correct aspect ratio.</p>

@@ -1,13 +1,17 @@
 {
   "name": "passport-photo-app",
   "version": "0.1.0",
+  "description": "Passport photo creation and print utility",
+  "author": "AJtati",
   "private": true,
+  "main": "electron/main.js",
   "homepage": ".",
   "dependencies": {
     "@capacitor/android": "^4.8.2",
     "@capacitor/cli": "^4.8.2",
     "@capacitor/core": "^4.8.2",
     "@capacitor/filesystem": "^4.1.5",
+    "@capacitor/ios": "^4.8.2",
     "@capacitor/share": "^4.1.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
@@ -28,6 +32,8 @@
   "scripts": {
     "start": "set PORT=3000 && react-scripts start",
     "build": "react-scripts build",
+    "electron:start": "npm run build && electron .",
+    "electron:dist": "npm run build && set CSC_IDENTITY_AUTO_DISCOVERY=false && electron-builder --win nsis",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "predeploy": "npm run build",
@@ -35,7 +41,11 @@
     "android:sync": "npx cap sync android",
     "android:open": "npx cap open android",
     "android:build": "npm run build && npx cap sync android",
-    "android:apk": "powershell -ExecutionPolicy Bypass -File scripts/build-android-apk.ps1"
+    "android:apk": "powershell -ExecutionPolicy Bypass -File scripts/build-android-apk.ps1",
+    "ios:add": "npx cap add ios",
+    "ios:sync": "npm run build && npx cap sync ios",
+    "ios:open": "npx cap open ios",
+    "ios:build": "npm run ios:sync"
   },
   "browserslist": {
     "production": [
@@ -50,8 +60,39 @@
     ]
   },
   "devDependencies": {
+    "electron": "^37.2.4",
+    "electron-builder": "^26.0.12",
     "eslint": "^8.57.1",
     "eslint-config-react-app": "^7.0.1",
     "gh-pages": "^6.3.0"
+  },
+  "build": {
+    "extends": null,
+    "appId": "com.ajtati.passportphoto",
+    "productName": "Passport Photo App",
+    "npmRebuild": false,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "build/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }

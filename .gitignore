@@ -11,8 +11,6 @@
 # production
 /build
 /release
-!/release/
-!/release/*.dmg
 
 # misc
 .DS_Store

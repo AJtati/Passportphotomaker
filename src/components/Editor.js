@@ -140,7 +140,7 @@ const Editor = ({ uploadedImage, onCrop, passportDimensions, dpi = 300 }) => {
             <p className="text-muted small mt-2">Adjust the selection on your photo. The frame is locked to the correct aspect ratio.</p>
           </div>
         ) : (
-          <div className="text-center text-muted" style={{ minHeight: '200px', border: '2px dashed #ccc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="text-center text-muted themed-empty-state" style={{ minHeight: '200px', border: '2px dashed #ccc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span>Upload an image to begin editing</span>
           </div>
         )}

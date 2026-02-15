@@ -11,6 +11,7 @@ const MM_PER_INCH = 25.4;
 
 const toPixels = (mm, dpi) => Math.round((mm / MM_PER_INCH) * dpi);
 const MAX_EDITOR_IMAGE_DIMENSION = 1400;
+const IMAGE_NAME_PATTERN = /\.(png|jpe?g|webp|gif|bmp|heic|heif)$/i;
 
 const A4_PIXELS_EDITOR = {
   portrait: {
@@ -109,13 +110,42 @@ const createEditorPreviewImage = (sourceImage) =>
     const targetHeight = Math.max(1, Math.round(sourceImage.naturalHeight * scale));
     const tempCanvas = document.createElement('canvas');
     const tempCtx = tempCanvas.getContext('2d');
+    if (!tempCtx) {
+      resolve(sourceImage);
+      return;
+    }
     tempCanvas.width = targetWidth;
     tempCanvas.height = targetHeight;
     tempCtx.drawImage(sourceImage, 0, 0, targetWidth, targetHeight);
 
     const previewImage = new Image();
     previewImage.onload = () => resolve(previewImage);
-    previewImage.src = tempCanvas.toDataURL('image/jpeg', 0.9);
+    previewImage.onerror = () => resolve(sourceImage);
+    const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.9);
+    if (!dataUrl || dataUrl === 'data:,') {
+      resolve(sourceImage);
+      return;
+    }
+    previewImage.src = dataUrl;
+  });
+
+const isLikelyImageFile = (file) =>
+  (typeof file?.type === 'string' && file.type.startsWith('image/')) ||
+  IMAGE_NAME_PATTERN.test(file?.name || '');
+
+const loadImageFromFile = (file) =>
+  new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const imageObj = new Image();
+    imageObj.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(imageObj);
+    };
+    imageObj.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Failed to decode image.'));
+    };
+    imageObj.src = objectUrl;
   });
 
 const CollagePrint = () => {
@@ -368,7 +398,7 @@ const CollagePrint = () => {
     const files = Array.from(event.target.files || []);
     if (!files.length) return;
 
-    const imageFiles = files.filter((file) => file.type.startsWith('image/'));
+    const imageFiles = files.filter(isLikelyImageFile);
     if (!imageFiles.length) {
       event.target.value = '';
       return;
@@ -376,32 +406,25 @@ const CollagePrint = () => {
 
     try {
       const loadedImages = await Promise.all(
-        imageFiles.map(
-          (file, index) =>
-            new Promise((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload = (loadEvent) => {
-                const imageObj = new Image();
-                imageObj.onload = async () => {
-                  const editorImageObj = await createEditorPreviewImage(imageObj);
-                  resolve({
-                    id: Date.now() + Math.random() + index,
-                    imageObj,
-                    editorImageObj,
-                    x: 0,
-                    y: 0,
-                    width: imageObj.naturalWidth,
-                    height: imageObj.naturalHeight,
-                    rotation: 0,
-                  });
-                };
-                imageObj.onerror = () => reject(new Error('Failed to load image.'));
-                imageObj.src = loadEvent.target.result;
-              };
-              reader.onerror = () => reject(new Error('Failed to read file.'));
-              reader.readAsDataURL(file);
-            })
-        )
+        imageFiles.map(async (file, index) => {
+          const imageObj = await loadImageFromFile(file);
+          let editorImageObj = imageObj;
+          try {
+            editorImageObj = await createEditorPreviewImage(imageObj);
+          } catch {
+            editorImageObj = imageObj;
+          }
+          return {
+            id: Date.now() + Math.random() + index,
+            imageObj,
+            editorImageObj,
+            x: 0,
+            y: 0,
+            width: imageObj.naturalWidth,
+            height: imageObj.naturalHeight,
+            rotation: 0,
+          };
+        })
       );
 
       setImages((prev) => autoArrangeImages([...prev, ...loadedImages], paperSize));
@@ -855,9 +878,9 @@ const CollagePrint = () => {
 
 
   return (
-    <div style={{ minHeight: '100vh', padding: '10px', backgroundColor: '#f5f5f5' }}>
+    <div style={{ minHeight: '100vh', padding: '10px', backgroundColor: 'var(--app-bg)', color: 'var(--text)' }}>
       <Card className="shadow-sm h-100" style={{ minHeight: '100vh' }}>
-        <Card.Header className="bg-light p-2 flex-shrink-0">
+        <Card.Header className="p-2 flex-shrink-0" style={{ backgroundColor: 'var(--surface-subtle)' }}>
           <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <h5 className="mb-0">Collage Print</h5>
             <Form.Select
@@ -882,7 +905,7 @@ const CollagePrint = () => {
               display: 'flex',
               flexDirection: 'column',
               gap: controlSpacing,
-              backgroundColor: '#fafafa',
+              backgroundColor: 'var(--surface-subtle)',
               padding: isMobile ? '12px' : '15px',
               borderRadius: '4px',
               overflowY: 'auto',
@@ -1031,19 +1054,19 @@ const CollagePrint = () => {
                     onChange={(e) => setZoomPercent(Math.max(10, Math.min(200, Number(e.target.value) || 10)))}
                     style={{ width: '70px' }}
                   />
-                  <span style={{ color: '#666' }}>%</span>
-                  <div style={{ marginLeft: 'auto', color: '#666' }}>Effective: {Math.round(effectiveScale * 100)}%</div>
+                  <span style={{ color: 'var(--text-muted)' }}>%</span>
+                  <div style={{ marginLeft: 'auto', color: 'var(--text-muted)' }}>Effective: {Math.round(effectiveScale * 100)}%</div>
                 </div>
               </div>
 
             <hr />
-            <div style={{ fontSize: controlFontSize, color: '#666' }}>
+            <div style={{ fontSize: controlFontSize, color: 'var(--text-muted)' }}>
               <p style={{ margin: '5px 0' }}><strong>Images:</strong> {images.length}</p>
               <p style={{ margin: '5px 0' }}><strong>Zoom:</strong> {zoomPercent}%</p>
-              <p style={{ margin: '5px 0', fontSize: isMobile ? '13px' : '11px', color: '#888' }}>Selected: {selectedId ? 'Yes' : 'No'}</p>
+              <p style={{ margin: '5px 0', fontSize: isMobile ? '13px' : '11px', color: 'var(--text-muted)' }}>Selected: {selectedId ? 'Yes' : 'No'}</p>
             </div>
 
-            <div style={{ fontSize: isMobile ? '13px' : '11px', color: '#999', marginTop: 'auto' }}>
+            <div style={{ fontSize: isMobile ? '13px' : '11px', color: 'var(--text-muted)', marginTop: 'auto' }}>
               <p style={{ margin: '5px 0' }}>💡 <strong>Tips:</strong></p>
               <ul style={{ paddingLeft: '18px', margin: '5px 0' }}>
                 <li>🟢 Green = Move</li>
@@ -1056,68 +1079,68 @@ const CollagePrint = () => {
           {isMobile && selectedId && (
             <div style={{ display: 'flex', flexDirection: 'row', gap: '5px', justifyContent: 'center', marginBottom: '10px', flexWrap: 'wrap' }}>
               <Button
-                variant="light"
+                variant="outline-secondary"
                 onMouseDown={() => startContinuousAction('moveUp', moveImageByStep, 0, -5)}
                 onMouseUp={stopContinuousAction}
                 onMouseLeave={stopContinuousAction}
                 onTouchStart={() => startContinuousAction('moveUp', moveImageByStep, 0, -5)}
                 onTouchEnd={stopContinuousAction}
-                style={{ width: '60px', height: '40px', touchAction: 'manipulation', backgroundColor: activeButtonId === 'moveUp' ? '#e0e0e0' : undefined }}
+                style={{ width: '60px', height: '40px', touchAction: 'manipulation', backgroundColor: activeButtonId === 'moveUp' ? 'var(--control-active-bg)' : undefined }}
               >
                 ⬆️
               </Button>
               <Button
-                variant="light"
+                variant="outline-secondary"
                 onMouseDown={() => startContinuousAction('moveLeft', moveImageByStep, -5, 0)}
                 onMouseUp={stopContinuousAction}
                 onMouseLeave={stopContinuousAction}
                 onTouchStart={() => startContinuousAction('moveLeft', moveImageByStep, -5, 0)}
                 onTouchEnd={stopContinuousAction}
-                style={{ width: '60px', height: '40px', touchAction: 'manipulation', backgroundColor: activeButtonId === 'moveLeft' ? '#e0e0e0' : undefined }}
+                style={{ width: '60px', height: '40px', touchAction: 'manipulation', backgroundColor: activeButtonId === 'moveLeft' ? 'var(--control-active-bg)' : undefined }}
               >
                 ⬅️
               </Button>
               <Button
-                variant="light"
+                variant="outline-secondary"
                 onMouseDown={() => startContinuousAction('moveRight', moveImageByStep, 5, 0)}
                 onMouseUp={stopContinuousAction}
                 onMouseLeave={stopContinuousAction}
                 onTouchStart={() => startContinuousAction('moveRight', moveImageByStep, 5, 0)}
                 onTouchEnd={stopContinuousAction}
-                style={{ width: '60px', height: '40px', touchAction: 'manipulation', backgroundColor: activeButtonId === 'moveRight' ? '#e0e0e0' : undefined }}
+                style={{ width: '60px', height: '40px', touchAction: 'manipulation', backgroundColor: activeButtonId === 'moveRight' ? 'var(--control-active-bg)' : undefined }}
               >
                 ➡️
               </Button>
               <Button
-                variant="light"
+                variant="outline-secondary"
                 onMouseDown={() => startContinuousAction('moveDown', moveImageByStep, 0, 5)}
                 onMouseUp={stopContinuousAction}
                 onMouseLeave={stopContinuousAction}
                 onTouchStart={() => startContinuousAction('moveDown', moveImageByStep, 0, 5)}
                 onTouchEnd={stopContinuousAction}
-                style={{ width: '60px', height: '40px', touchAction: 'manipulation', backgroundColor: activeButtonId === 'moveDown' ? '#e0e0e0' : undefined }}
+                style={{ width: '60px', height: '40px', touchAction: 'manipulation', backgroundColor: activeButtonId === 'moveDown' ? 'var(--control-active-bg)' : undefined }}
               >
                 ⬇️
               </Button>
               <Button
-                variant="light"
+                variant="outline-secondary"
                 onMouseDown={() => startContinuousAction('zoomOut', resizeImageByStep, -5)}
                 onMouseUp={stopContinuousAction}
                 onMouseLeave={stopContinuousAction}
                 onTouchStart={() => startContinuousAction('zoomOut', resizeImageByStep, -5)}
                 onTouchEnd={stopContinuousAction}
-                style={{ width: '60px', height: '40px', touchAction: 'manipulation', backgroundColor: activeButtonId === 'zoomOut' ? '#e0e0e0' : undefined }}
+                style={{ width: '60px', height: '40px', touchAction: 'manipulation', backgroundColor: activeButtonId === 'zoomOut' ? 'var(--control-active-bg)' : undefined }}
               >
                 ➖
               </Button>
               <Button
-                variant="light"
+                variant="outline-secondary"
                 onMouseDown={() => startContinuousAction('zoomIn', resizeImageByStep, 5)}
                 onMouseUp={stopContinuousAction}
                 onMouseLeave={stopContinuousAction}
                 onTouchStart={() => startContinuousAction('zoomIn', resizeImageByStep, 5)}
                 onTouchEnd={stopContinuousAction}
-                style={{ width: '60px', height: '40px', touchAction: 'manipulation', backgroundColor: activeButtonId === 'zoomIn' ? '#e0e0e0' : undefined }}
+                style={{ width: '60px', height: '40px', touchAction: 'manipulation', backgroundColor: activeButtonId === 'zoomIn' ? 'var(--control-active-bg)' : undefined }}
               >
                 ➕
               </Button>
@@ -1132,10 +1155,10 @@ const CollagePrint = () => {
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
-              backgroundColor: '#fff',
+              backgroundColor: 'var(--surface)',
               borderRadius: '4px',
               overflow: 'auto',
-              border: '1px solid #ddd',
+              border: '1px solid var(--border-color)',
               marginTop: isMobile ? '12px' : 0,
               padding: isMobile ? '12px' : '0'
             }}
@@ -1150,7 +1173,7 @@ const CollagePrint = () => {
                 width: `${paperSize.width * effectiveScale}px`,
                 height: `${paperSize.height * effectiveScale}px`,
                 backgroundColor: 'white',
-                border: '2px solid #ddd',
+                border: '2px solid var(--border-color)',
                 cursor: draggingType === 'rotate' ? 'grab' : draggingType === 'resize' ? 'pointer' : draggingType === 'move' ? 'grabbing' : 'pointer',
                 display: 'block',
               }}

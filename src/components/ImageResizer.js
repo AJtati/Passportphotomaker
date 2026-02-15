@@ -702,7 +702,7 @@ const ImageResizer = () => {
             <Card.Title>Processed Image Preview</Card.Title>
             {finalProcessedImage ? (
               <>
-                <div className="text-center mb-3" style={{ backgroundColor: '#e9ecef', padding: '1rem', overflowX: 'auto' }}>
+                <div className="text-center mb-3 themed-canvas-wrap" style={{ padding: '1rem', overflowX: 'auto' }}>
                   <canvas ref={previewCanvasRef} style={{ maxWidth: '100%', height: 'auto', border: '1px solid #ccc' }} />
                 </div>
                 {currentFileSizeKB && <p className="text-center">Current Size: {currentFileSizeKB} KB</p>}
@@ -717,7 +717,7 @@ const ImageResizer = () => {
                 </div>
               </>
             ) : (
-              <div className="text-center text-muted" style={{ minHeight: '200px', border: '2px dashed #ccc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="text-center text-muted themed-empty-state" style={{ minHeight: '200px', border: '2px dashed #ccc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span>Upload and process an image to see preview</span>
               </div>
             )}

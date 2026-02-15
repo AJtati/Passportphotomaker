@@ -1,5 +1,40 @@
+html[data-theme='light'] {
+  --app-bg: #f0f2f5;
+  --surface: #ffffff;
+  --surface-subtle: #e9ecef;
+  --text: #1c2b36;
+  --text-muted: #6c757d;
+  --border-color: #ced4da;
+  --control-active-bg: #e0e0e0;
+  --top-nav-border: #e5e7eb;
+  --top-nav-active-bg: #e9f2ff;
+  --top-nav-active-text: #0b5ed7;
+}
+
+html[data-theme='dark'] {
+  --app-bg: #0f141a;
+  --surface: #18212b;
+  --surface-subtle: #202b37;
+  --text: #e6edf3;
+  --text-muted: #9fb0c0;
+  --border-color: #31404f;
+  --control-active-bg: #2b3744;
+  --top-nav-border: #2a3644;
+  --top-nav-active-bg: #263547;
+  --top-nav-active-text: #8ab4f8;
+}
+
 body {
-  background-color: #f0f2f5; /* Light grey background, similar to Facebook */
+  --bs-body-bg: var(--app-bg);
+  --bs-body-color: var(--text);
+  --bs-card-bg: var(--surface);
+  --bs-card-color: var(--text);
+  --bs-border-color: var(--border-color);
+  --bs-secondary-color: var(--text-muted);
+  --bs-tertiary-bg: var(--surface-subtle);
+  --bs-secondary-bg: var(--surface-subtle);
+  background-color: var(--app-bg);
+  color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
@@ -28,13 +63,13 @@ body {
   max-width: 900px;
   margin: 2rem auto 4rem auto; /* Added 4rem bottom margin */
   padding: 2rem;
-  background-color: #ffffff;
+  background-color: var(--surface);
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 h1, h2, h3 {
-  color: #1c2b36;
+  color: var(--text);
 }
 
 .btn-primary {
@@ -64,12 +99,12 @@ h1, h2, h3 {
   border: none;
   border-radius: 8px;
   margin-left: 0.25rem;
-  color: #1c2b36;
+  color: var(--text);
 }
 
 .top-nav .nav-link.active {
-  background-color: #e9f2ff;
-  color: #0b5ed7;
+  background-color: var(--top-nav-active-bg);
+  color: var(--top-nav-active-text);
   font-weight: 600;
 }
 
@@ -81,7 +116,7 @@ h1, h2, h3 {
   }
 
   .top-nav .navbar-collapse {
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid var(--top-nav-border);
     margin-top: 0.75rem;
     padding-top: 0.5rem;
   }
@@ -96,4 +131,23 @@ h1, h2, h3 {
   .top-nav .navbar-brand {
     font-size: 1rem;
   }
+}
+
+.top-nav.navbar {
+  background-color: var(--surface);
+  color: var(--text);
+}
+
+.themed-surface-subtle {
+  background-color: var(--surface-subtle);
+}
+
+.themed-canvas-wrap {
+  background-color: var(--surface-subtle);
+  border: 1px solid var(--border-color);
+}
+
+.themed-empty-state {
+  color: var(--text-muted);
+  border-color: var(--border-color) !important;
 }

@@ -117,7 +117,7 @@ const Preview = forwardRef(({ paper, passport, croppedImage, addBorder, dpi }, r
       <Card.Body>
         <Card.Title>Step 3: Preview & Download</Card.Title>
         <p>A real-time preview of the final print layout.</p>
-        <div className="text-center" style={{ backgroundColor: '#e9ecef', padding: '1rem', overflowX: 'auto' }}>
+        <div className="text-center themed-canvas-wrap" style={{ padding: '1rem', overflowX: 'auto' }}>
           <canvas ref={ref} style={{ width: '100%', backgroundColor: 'white' }} />
         </div>
       </Card.Body>

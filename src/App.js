@@ -36,6 +36,7 @@ const ROUTE_TO_TAB = Object.fromEntries(
 );
 
 const DEFAULT_TAB = 'passport';
+const THEME_STORAGE_KEY = 'ui-theme-mode';
 
 const getTabFromHash = () => {
   const rawHash = window.location.hash.replace(/^#/, '');
@@ -43,10 +44,22 @@ const getTabFromHash = () => {
   return ROUTE_TO_TAB[normalizedRoute] || DEFAULT_TAB;
 };
 
+const getSystemTheme = () =>
+  window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+
+const getResolvedTheme = (mode) => (mode === 'system' ? getSystemTheme() : mode);
+
+const getInitialThemeMode = () => {
+  const saved = localStorage.getItem(THEME_STORAGE_KEY);
+  return saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'system';
+};
+
 // --- Main App Component ---
 function App() {
   const [activeTab, setActiveTab] = useState(getTabFromHash);
   const [isNavExpanded, setIsNavExpanded] = useState(false); // New state for Navbar collapse
+  const [themeMode, setThemeMode] = useState(getInitialThemeMode);
+  const [resolvedTheme, setResolvedTheme] = useState(getResolvedTheme(getInitialThemeMode()));
 
   useEffect(() => {
     const syncTabWithHash = () => {
@@ -63,15 +76,38 @@ function App() {
     return () => window.removeEventListener('hashchange', syncTabWithHash);
   }, []);
 
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const applyResolvedTheme = () => setResolvedTheme(getResolvedTheme(themeMode));
+    applyResolvedTheme();
+    media.addEventListener('change', applyResolvedTheme);
+    return () => media.removeEventListener('change', applyResolvedTheme);
+  }, [themeMode]);
+
+  useEffect(() => {
+    localStorage.setItem(THEME_STORAGE_KEY, themeMode);
+  }, [themeMode]);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', resolvedTheme);
+    document.documentElement.setAttribute('data-bs-theme', resolvedTheme);
+  }, [resolvedTheme]);
+
   const handleTabSelect = (tabKey) => {
     if (!TAB_ROUTES[tabKey]) return;
     window.location.hash = TAB_ROUTES[tabKey];
     setIsNavExpanded(false);
   };
 
+  const handleThemeSelect = (mode) => {
+    if (mode === 'light' || mode === 'dark' || mode === 'system') {
+      setThemeMode(mode);
+    }
+  };
+
   return (
     <>
-      <Navbar bg="white" expand="lg" className="mb-4 shadow-sm top-nav" expanded={isNavExpanded} onToggle={setIsNavExpanded}>
+      <Navbar expand="lg" className="mb-4 shadow-sm top-nav" expanded={isNavExpanded} onToggle={setIsNavExpanded}>
         <Container>
           <Navbar.Brand 
             onClick={() => handleTabSelect('passport')}
@@ -100,6 +136,18 @@ function App() {
                 <Nav.Link eventKey="collage">Collage Print</Nav.Link>
               </Nav.Item>
             </Nav>
+            <DropdownButton
+              id="theme-dropdown"
+              title={`Theme: ${themeMode === 'system' ? `System (${resolvedTheme})` : themeMode}`}
+              variant="outline-secondary"
+              size="sm"
+              className="ms-lg-3 mt-2 mt-lg-0"
+              onSelect={handleThemeSelect}
+            >
+              <Dropdown.Item eventKey="system" active={themeMode === 'system'}>System</Dropdown.Item>
+              <Dropdown.Item eventKey="light" active={themeMode === 'light'}>Light</Dropdown.Item>
+              <Dropdown.Item eventKey="dark" active={themeMode === 'dark'}>Dark</Dropdown.Item>
+            </DropdownButton>
           </Navbar.Collapse>
         </Container>
       </Navbar>

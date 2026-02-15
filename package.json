@@ -34,6 +34,8 @@
     "build": "react-scripts build",
     "electron:start": "npm run build && electron .",
     "electron:dist": "npm run build && set CSC_IDENTITY_AUTO_DISCOVERY=false && electron-builder --win nsis",
+    "electron:dist:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip",
+    "electron:dist:mac:arm64": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip --arm64",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "predeploy": "npm run build",
@@ -89,6 +91,14 @@
           ]
         }
       ]
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.photography",
+      "icon": "electron/icon.icns"
     },
     "nsis": {
       "oneClick": false,

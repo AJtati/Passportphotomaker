@@ -20,6 +20,12 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>This app uses the camera to capture photos for passport-size editing.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs photo library access to import images for passport-size editing.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>This app may save generated passport photo files to your photo library.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

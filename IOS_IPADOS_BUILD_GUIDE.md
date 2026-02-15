@@ -11,7 +11,7 @@ This project is now prepared with iOS scripts and dependency support.
 ## 2. Get code on Mac
 ```bash
 git clone https://github.com/AJtati/Passportphotomaker.git
-cd Passportphotomaker/passport-photo-app
+cd Passportphotomaker
 npm install
 ```
 

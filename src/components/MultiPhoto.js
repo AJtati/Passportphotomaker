@@ -280,9 +280,9 @@ const MultiPhoto = () => {
                       )}
                     </div>
                     <div className="multi-photo-meta">
-                      <div className="small text-truncate" title={photo?.name || ''}>{photo?.name || `Empty slot ${index + 1}`}</div>
+                      <div className="small multi-photo-file-name" title={photo?.name || ''}>{photo?.name || `Empty slot ${index + 1}`}</div>
                       {photo && (
-                        <div className="d-flex gap-2 mt-2">
+                        <div className="multi-photo-actions mt-2">
                           <Button variant="outline-secondary" size="sm" onClick={() => handleRotate(photo.id)}>
                             Rotate ({photo.rotation}deg)
                           </Button>

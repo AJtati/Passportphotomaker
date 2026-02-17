@@ -151,3 +151,51 @@ h1, h2, h3 {
   color: var(--text-muted);
   border-color: var(--border-color) !important;
 }
+
+.multi-photo-sidebar {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.multi-photo-item {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.6rem;
+  background: var(--surface-subtle);
+}
+
+.multi-photo-item.has-image {
+  background: var(--surface);
+}
+
+.multi-photo-preview-wrap {
+  width: 72px;
+  height: 48px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--surface-subtle);
+  flex: 0 0 auto;
+}
+
+.multi-photo-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.multi-photo-empty-text {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.multi-photo-meta {
+  flex: 1;
+  min-width: 0;
+}

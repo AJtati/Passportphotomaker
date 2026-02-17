@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Row, Col, Card, Form, Button, DropdownButton, Dropdown } from 'react-bootstrap';
+import { Row, Col, Card, Form, Button, DropdownButton, Dropdown, Badge } from 'react-bootstrap';
 import { jsPDF } from 'jspdf';
 import { saveCanvasImage, savePdf } from '../utils/fileDownload';
 
@@ -9,6 +9,14 @@ const A4_WIDTH_MM = 297;
 const A4_HEIGHT_MM = 210;
 const PHOTO_WIDTH_IN = 6;
 const PHOTO_HEIGHT_IN = 4;
+const MAX_PHOTOS = 4;
+
+const BORDER_STYLES = [
+  { value: 'none', label: 'No Border' },
+  { value: 'single', label: 'Single Line' },
+  { value: 'thick', label: 'Thick Line' },
+  { value: 'double', label: 'Double Line' },
+];
 
 const convertToPixels = (value, unit) => {
   if (unit === 'in') return value * DPI;
@@ -16,10 +24,38 @@ const convertToPixels = (value, unit) => {
   return value;
 };
 
+function drawPhotoFrame(ctx, frameX, frameY, frameWidth, frameHeight, style) {
+  const drawRect = (inset, lineWidth, color = '#2f3e4d') => {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.strokeRect(
+      frameX + inset + lineWidth / 2,
+      frameY + inset + lineWidth / 2,
+      frameWidth - ((inset + lineWidth / 2) * 2),
+      frameHeight - ((inset + lineWidth / 2) * 2)
+    );
+  };
+
+  if (style === 'single') {
+    drawRect(0, 3);
+    return;
+  }
+
+  if (style === 'thick') {
+    drawRect(0, 8);
+    return;
+  }
+
+  if (style === 'double') {
+    drawRect(0, 2);
+    drawRect(9, 2);
+  }
+}
+
 /**
- * Draws an image inside a given slot, preserving aspect ratio (background-size: contain).
+ * Draws image with optional white margin + border around the image itself.
  */
-function drawContainedImage(ctx, image, slotX, slotY, slotWidth, slotHeight, rotation) {
+function drawContainedImage(ctx, image, slotX, slotY, slotWidth, slotHeight, rotation, borderStyle) {
   ctx.save(); // Save the current state
   
   // Translate to the center of the slot for rotation
@@ -33,19 +69,36 @@ function drawContainedImage(ctx, image, slotX, slotY, slotWidth, slotHeight, rot
   const effectiveSlotWidth = isSideways ? slotHeight : slotWidth;
   const effectiveSlotHeight = isSideways ? slotWidth : slotHeight;
   
-  const slotAspectRatio = effectiveSlotWidth / effectiveSlotHeight;
+  const hasFrame = borderStyle !== 'none';
+  const outerInset = hasFrame ? 14 : 0;
+  const imageMatPadding = hasFrame ? 10 : 0;
+  const frameWidthLimit = Math.max(1, effectiveSlotWidth - outerInset * 2);
+  const frameHeightLimit = Math.max(1, effectiveSlotHeight - outerInset * 2);
+  const imageWidthLimit = Math.max(1, frameWidthLimit - imageMatPadding * 2);
+  const imageHeightLimit = Math.max(1, frameHeightLimit - imageMatPadding * 2);
+  const limitedSlotAspectRatio = imageWidthLimit / imageHeightLimit;
 
   let drawWidth, drawHeight;
 
-  if (imgAspectRatio > slotAspectRatio) { // Image is wider than the slot
-    drawWidth = effectiveSlotWidth;
-    drawHeight = effectiveSlotWidth / imgAspectRatio;
+  if (imgAspectRatio > limitedSlotAspectRatio) { // Image is wider than the slot
+    drawWidth = imageWidthLimit;
+    drawHeight = imageWidthLimit / imgAspectRatio;
   } else { // Image is taller than or same aspect as the slot
-    drawHeight = effectiveSlotHeight;
-    drawWidth = effectiveSlotHeight * imgAspectRatio;
+    drawHeight = imageHeightLimit;
+    drawWidth = imageHeightLimit * imgAspectRatio;
   }
 
-  // Draw the image centered in the rotated context
+  const frameWidth = drawWidth + imageMatPadding * 2;
+  const frameHeight = drawHeight + imageMatPadding * 2;
+  const frameX = -frameWidth / 2;
+  const frameY = -frameHeight / 2;
+
+  if (hasFrame) {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(frameX, frameY, frameWidth, frameHeight);
+    drawPhotoFrame(ctx, frameX, frameY, frameWidth, frameHeight, borderStyle);
+  }
+
   ctx.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
   
   ctx.restore(); // Restore the state
@@ -53,60 +106,64 @@ function drawContainedImage(ctx, image, slotX, slotY, slotWidth, slotHeight, rot
 
 
 const MultiPhoto = () => {
-  const [images, setImages] = useState([null, null, null, null]);
-  const [imageObjects, setImageObjects] = useState([null, null, null, null]);
-  const [rotations, setRotations] = useState([0, 0, 0, 0]);
+  const [photos, setPhotos] = useState([]);
+  const [borderStyle, setBorderStyle] = useState('single');
   const canvasRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
-    let allImagesLoaded = true;
-    const newImageObjects = [...imageObjects];
-  
-    images.forEach((imgData, index) => {
-      if (imgData && (!imageObjects[index] || imageObjects[index].src !== imgData)) {
-        const img = new Image();
-        img.src = imgData;
-        newImageObjects[index] = img; 
-        allImagesLoaded = false; 
-        img.onload = () => {
-          setImageObjects(currentObjs => {
-            const finalObjs = [...currentObjs];
-            finalObjs[index] = img;
-            if (finalObjs.every((obj, i) => !images[i] || obj?.complete)) {
-              drawCanvas(finalObjs, rotations);
-            }
-            return finalObjs;
-          });
-        };
-      } else if (!imgData && imageObjects[index]) {
-        newImageObjects[index] = null;
-      }
-    });
-  
-    if (allImagesLoaded) {
-      drawCanvas(newImageObjects, rotations);
-    }
-  }, [images, rotations]);
+    drawCanvas();
+  }, [photos, borderStyle]);
 
-  const handleImageUpload = (file, index) => {
-    if (file && file.type.startsWith('image/')) {
+  const triggerFilePicker = () => {
+    if (photos.length >= MAX_PHOTOS) return;
+    fileInputRef.current?.click();
+  };
+
+  const handleImageUpload = (fileList) => {
+    const files = Array.from(fileList || []).filter((file) => file.type.startsWith('image/'));
+    if (files.length === 0) return;
+
+    files.forEach((file) => {
       const reader = new FileReader();
       reader.onload = (event) => {
-        const newImages = [...images];
-        newImages[index] = event.target.result;
-        setImages(newImages);
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          setPhotos((currentPhotos) => {
+            if (currentPhotos.length >= MAX_PHOTOS) {
+              return currentPhotos;
+            }
+            return [
+              ...currentPhotos,
+              {
+                id: `${Date.now()}-${Math.random()}`,
+                src: event.target.result,
+                image: img,
+                rotation: 0,
+                name: file.name,
+              },
+            ];
+          });
+        };
       };
       reader.readAsDataURL(file);
-    }
+    });
   };
 
-  const handleRotate = (index) => {
-    const newRotations = [...rotations];
-    newRotations[index] = (newRotations[index] + 90) % 360;
-    setRotations(newRotations);
+  const handleRotate = (id) => {
+    setPhotos((currentPhotos) =>
+      currentPhotos.map((photo) =>
+        photo.id === id ? { ...photo, rotation: (photo.rotation + 90) % 360 } : photo
+      )
+    );
   };
 
-  const drawCanvas = (currentImages, currentRotations) => {
+  const handleRemove = (id) => {
+    setPhotos((currentPhotos) => currentPhotos.filter((photo) => photo.id !== id));
+  };
+
+  const drawCanvas = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -121,11 +178,11 @@ const MultiPhoto = () => {
 
     const photoWidthPx = convertToPixels(PHOTO_WIDTH_IN, 'in');
     const photoHeightPx = convertToPixels(PHOTO_HEIGHT_IN, 'in');
-    
-    const activeImages = currentImages.filter(img => img && img.complete);
+
+    const activeCount = photos.length;
     let positions;
 
-    if (activeImages.length === 2) {
+    if (activeCount === 2) {
       // Side-by-side for two photos
       const marginX = (paperWidthPx - 2 * photoWidthPx) / 3;
       const marginY = (paperHeightPx - photoHeightPx) / 2;
@@ -146,15 +203,18 @@ const MultiPhoto = () => {
     }
 
     positions.forEach((pos, index) => {
+      const photo = photos[index];
       ctx.strokeStyle = '#ced4da';
+      ctx.lineWidth = 2;
       ctx.strokeRect(pos.x, pos.y, pos.w, pos.h);
-      if (currentImages[index] && currentImages[index].complete) {
-        drawContainedImage(ctx, currentImages[index], pos.x, pos.y, pos.w, pos.h, currentRotations[index]);
+      if (photo?.image?.complete) {
+        drawContainedImage(ctx, photo.image, pos.x, pos.y, pos.w, pos.h, photo.rotation, borderStyle);
       } else {
         ctx.fillStyle = '#6c757d';
         ctx.textAlign = 'center';
-        ctx.font = '48px Arial';
-        ctx.fillText(`Image ${index + 1}`, pos.x + pos.w / 2, pos.y + pos.h / 2);
+        ctx.textBaseline = 'middle';
+        ctx.font = '40px Arial';
+        ctx.fillText(`Photo ${index + 1}`, pos.x + pos.w / 2, pos.y + pos.h / 2);
       }
     });
   };
@@ -181,19 +241,61 @@ const MultiPhoto = () => {
         <Card>
           <Card.Body>
             <Card.Title>Upload Your Photos</Card.Title>
-            <p>Upload up to four photos. They will be arranged on a landscape A4 page. Each photo fits in a 6x4 inch slot. If you upload only two, they will be placed side-by-side.</p>
-            {[...Array(4)].map((_, index) => (
-              <Form.Group key={index} className="mb-3">
-                <Form.Label>Image {index + 1}</Form.Label>
-                <div className="d-flex align-items-center">
-                  <Form.Control type="file" accept="image/jpeg, image/png" onChange={(e) => handleImageUpload(e.target.files[0], index)} />
-                  <Button variant="outline-secondary" size="sm" className="ms-2" onClick={() => handleRotate(index)} title={`Rotate ${rotations[index]}°`}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-arrow-clockwise" viewBox="0 0 16 16"><path fillRule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/></svg>
-                  </Button>
-                  <img src={images[index] || ''} alt="" style={{ width: '60px', height: 'auto', marginLeft: '1rem', border: '1px solid var(--border-color)', visibility: images[index] ? 'visible' : 'hidden' }} />
-                </div>
-              </Form.Group>
-            ))}
+            <p className="mb-3">Select one or multiple photos (Ctrl-select on Windows), then keep adding until you reach 4 photos. Layout stays 6x4 per photo on A4 landscape.</p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg, image/png"
+              multiple
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                handleImageUpload(e.target.files);
+                e.target.value = '';
+              }}
+            />
+            <div className="d-flex align-items-center justify-content-between mb-3">
+              <Badge bg="secondary">{photos.length}/{MAX_PHOTOS} added</Badge>
+              <Button variant="primary" onClick={triggerFilePicker} disabled={photos.length >= MAX_PHOTOS}>
+                {photos.length === 0 ? 'Choose Photo(s)' : 'Choose Photo(s) Again'}
+              </Button>
+            </div>
+            <Form.Group className="mb-3">
+              <Form.Label>Photo Border</Form.Label>
+              <Form.Select value={borderStyle} onChange={(e) => setBorderStyle(e.target.value)}>
+                {BORDER_STYLES.map((style) => (
+                  <option key={style.value} value={style.value}>{style.label}</option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+            <div className="multi-photo-sidebar">
+              {[...Array(MAX_PHOTOS)].map((_, index) => {
+                const photo = photos[index];
+                return (
+                  <div key={photo?.id || `empty-${index}`} className={`multi-photo-item ${photo ? 'has-image' : ''}`}>
+                    <div className="multi-photo-preview-wrap">
+                      {photo ? (
+                        <img src={photo.src} alt={`Photo ${index + 1}`} className="multi-photo-preview-img" />
+                      ) : (
+                        <span className="multi-photo-empty-text">Photo {index + 1}</span>
+                      )}
+                    </div>
+                    <div className="multi-photo-meta">
+                      <div className="small text-truncate" title={photo?.name || ''}>{photo?.name || `Empty slot ${index + 1}`}</div>
+                      {photo && (
+                        <div className="d-flex gap-2 mt-2">
+                          <Button variant="outline-secondary" size="sm" onClick={() => handleRotate(photo.id)}>
+                            Rotate ({photo.rotation}deg)
+                          </Button>
+                          <Button variant="outline-danger" size="sm" onClick={() => handleRemove(photo.id)}>
+                            Remove
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </Card.Body>
         </Card>
       </Col>
@@ -209,7 +311,7 @@ const MultiPhoto = () => {
         <div className="d-grid gap-2 mt-3">
           <DropdownButton
             id="dropdown-download-multi-button" title="Download A4 Sheet" size="lg"
-            variant="primary" disabled={images.every(img => img === null)}
+            variant="primary" disabled={photos.length === 0}
           >
             <Dropdown.Item onClick={() => handleDownload('PDF')}>Download as PDF</Dropdown.Item>
             <Dropdown.Item onClick={() => handleDownload('JPG')}>Download as JPG</Dropdown.Item>

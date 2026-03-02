@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Row, Col, Card, Form, Button, DropdownButton, Dropdown, Badge } from 'react-bootstrap';
-import { jsPDF } from 'jspdf';
-import { saveCanvasImage, savePdf } from '../utils/fileDownload';
+import { Row, Col, Card, Form, Button, Badge } from 'react-bootstrap';
+import FormatDownloadDropdown from './FormatDownloadDropdown';
+import { saveCanvasDocument } from '../utils/canvasExport';
+import { convertToPixels } from '../utils/dimensions';
 
 const DPI = 300;
 // Swapped for Landscape orientation
@@ -17,12 +18,6 @@ const BORDER_STYLES = [
   { value: 'thick', label: 'Thick Line' },
   { value: 'double', label: 'Double Line' },
 ];
-
-const convertToPixels = (value, unit) => {
-  if (unit === 'in') return value * DPI;
-  if (unit === 'mm') return (value / 25.4) * DPI;
-  return value;
-};
 
 function drawPhotoFrame(ctx, frameX, frameY, frameWidth, frameHeight, style) {
   const drawRect = (inset, lineWidth, color = '#2f3e4d') => {
@@ -168,16 +163,16 @@ const MultiPhoto = () => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    const paperWidthPx = convertToPixels(A4_WIDTH_MM, 'mm');
-    const paperHeightPx = convertToPixels(A4_HEIGHT_MM, 'mm');
+    const paperWidthPx = convertToPixels(A4_WIDTH_MM, 'mm', DPI);
+    const paperHeightPx = convertToPixels(A4_HEIGHT_MM, 'mm', DPI);
     canvas.width = paperWidthPx;
     canvas.height = paperHeightPx;
 
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const photoWidthPx = convertToPixels(PHOTO_WIDTH_IN, 'in');
-    const photoHeightPx = convertToPixels(PHOTO_HEIGHT_IN, 'in');
+    const photoWidthPx = convertToPixels(PHOTO_WIDTH_IN, 'in', DPI);
+    const photoHeightPx = convertToPixels(PHOTO_HEIGHT_IN, 'in', DPI);
 
     const activeCount = photos.length;
     let positions;
@@ -223,13 +218,17 @@ const MultiPhoto = () => {
     const canvas = canvasRef.current;
     if (!canvas) { alert("Preview canvas not ready."); return; }
     try {
-      if (format === 'PDF') {
-        const pdf = new jsPDF('l', 'mm', [A4_WIDTH_MM, A4_HEIGHT_MM]);
-        pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', 0, 0, A4_WIDTH_MM, A4_HEIGHT_MM);
-        await savePdf(pdf, 'multi-photo_A4_landscape.pdf');
-      } else {
-        await saveCanvasImage(canvas, format, `multi-photo_A4_landscape.${format.toLowerCase()}`, 1.0);
-      }
+      await saveCanvasDocument(canvas, format, {
+        filename: `multi-photo_A4_landscape.${format.toLowerCase()}`,
+        quality: 1.0,
+        pdfOptions: {
+          filename: 'multi-photo_A4_landscape.pdf',
+          unit: 'mm',
+          width: A4_WIDTH_MM,
+          height: A4_HEIGHT_MM,
+          orientation: 'l',
+        },
+      });
     } catch (error) {
       alert(`Download failed: ${error.message}`);
     }
@@ -309,14 +308,12 @@ const MultiPhoto = () => {
           </Card.Body>
         </Card>
         <div className="d-grid gap-2 mt-3">
-          <DropdownButton
+          <FormatDownloadDropdown
             id="dropdown-download-multi-button" title="Download A4 Sheet" size="lg"
             variant="primary" disabled={photos.length === 0}
-          >
-            <Dropdown.Item onClick={() => handleDownload('PDF')}>Download as PDF</Dropdown.Item>
-            <Dropdown.Item onClick={() => handleDownload('JPG')}>Download as JPG</Dropdown.Item>
-            <Dropdown.Item onClick={() => handleDownload('PNG')}>Download as PNG</Dropdown.Item>
-          </DropdownButton>
+            formats={['PDF', 'JPG', 'PNG']}
+            onSelect={handleDownload}
+          />
         </div>
       </Col>
     </Row>

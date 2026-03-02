@@ -1,16 +1,6 @@
 import React, { useRef, useEffect, forwardRef } from 'react';
 import { Card } from 'react-bootstrap';
-
-// --- Helper Function ---
-const convertToPixels = (value, unit, dpi) => {
-  if (unit === 'in') {
-    return value * dpi;
-  }
-  if (unit === 'mm') {
-    return (value / 25.4) * dpi;
-  }
-  return value;
-};
+import { convertToPixels } from '../utils/dimensions';
 
 const Preview = forwardRef(({ paper, passport, croppedImage, addBorder, dpi }, ref) => {
   const photoPlaceholder = useRef(null);
@@ -110,7 +100,7 @@ const Preview = forwardRef(({ paper, passport, croppedImage, addBorder, dpi }, r
 
   useEffect(() => {
     drawCanvas();
-  }, [paper, passport, dpi, croppedImage, addBorder, ref]); // Added addBorder to dependency array
+  }, [paper, passport, dpi, croppedImage, addBorder, ref]);
 
   return (
     <Card>

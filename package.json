@@ -20,6 +20,7 @@
     "bootstrap": "^5.3.8",
     "jspdf": "^4.0.0",
     "konva": "^10.2.0",
+    "pdfjs-dist": "^3.11.174",
     "react": "^19.2.4",
     "react-bootstrap": "^2.10.10",
     "react-dom": "^19.2.4",
@@ -30,12 +31,12 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "set PORT=3000 && react-scripts start",
+    "start": "cross-env PORT=3000 react-scripts start",
     "build": "react-scripts build",
     "electron:start": "npm run build && electron .",
-    "electron:dist": "npm run build && set CSC_IDENTITY_AUTO_DISCOVERY=false && electron-builder --win nsis",
-    "electron:dist:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip",
-    "electron:dist:mac:arm64": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip --arm64",
+    "electron:dist": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win nsis",
+    "electron:dist:mac": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip",
+    "electron:dist:mac:arm64": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip --arm64",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "predeploy": "npm run build",
@@ -62,6 +63,7 @@
     ]
   },
   "devDependencies": {
+    "cross-env": "^10.1.0",
     "electron": "^37.2.4",
     "electron-builder": "^26.0.12",
     "eslint": "^8.57.1",

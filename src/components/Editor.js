@@ -1,128 +1,19 @@
 import React, { useDeferredValue, useEffect, useRef, useState, startTransition } from 'react';
-import { Card, Button, Alert, DropdownButton, Dropdown, Form } from 'react-bootstrap';
+import { Card, Button, Alert, Form } from 'react-bootstrap';
 import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
+import FormatDownloadDropdown from './FormatDownloadDropdown';
 import { saveCanvasImage } from '../utils/fileDownload';
-
-const MAX_ROTATION_DEGREES = 15;
-const ROTATION_STEP = 0.1;
-const PREVIEW_MAX_DIMENSION = 1600;
-
-const convertToPixels = (value, unit, dpi) => {
-  if (unit === 'in') return value * dpi;
-  if (unit === 'mm') return (value / 25.4) * dpi;
-  return value;
-};
-
-const loadImage = (src) =>
-  new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error('Failed to load image.'));
-    image.src = src;
-  });
-
-const getRotatedBounds = (width, height, radians) => {
-  const absCos = Math.abs(Math.cos(radians));
-  const absSin = Math.abs(Math.sin(radians));
-
-  return {
-    width: Math.max(1, Math.round(width * absCos + height * absSin)),
-    height: Math.max(1, Math.round(width * absSin + height * absCos)),
-  };
-};
-
-const renderAdjustedCanvas = (image, rotation, maxDimension = null) => {
-  const scaleToFitPreview = maxDimension
-    ? Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight))
-    : 1;
-  const canvasWidth = Math.max(1, Math.round(image.naturalWidth * scaleToFitPreview));
-  const canvasHeight = Math.max(1, Math.round(image.naturalHeight * scaleToFitPreview));
-  const radians = rotation * (Math.PI / 180);
-  const bounds = getRotatedBounds(canvasWidth, canvasHeight, radians);
-  const canvas = document.createElement('canvas');
-  canvas.width = canvasWidth;
-  canvas.height = canvasHeight;
-  const fitScale = Math.min(canvasWidth / bounds.width, canvasHeight / bounds.height);
-
-  const ctx = canvas.getContext('2d');
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-  ctx.fillStyle = 'white';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.translate(canvas.width / 2, canvas.height / 2);
-  ctx.rotate(radians);
-  ctx.drawImage(
-    image,
-    -canvasWidth * fitScale / 2,
-    -canvasHeight * fitScale / 2,
-    canvasWidth * fitScale,
-    canvasHeight * fitScale
-  );
-
-  return canvas;
-};
-
-const getActualCropDimensions = (displayWidth, displayHeight, sourceWidth, sourceHeight, crop) => {
-  const scaleX = sourceWidth / displayWidth;
-  const scaleY = sourceHeight / displayHeight;
-
-  const actualCropX = Math.round(crop.x * scaleX);
-  const actualCropY = Math.round(crop.y * scaleY);
-  const actualCropWidth = Math.max(1, Math.round(crop.width * scaleX));
-  const actualCropHeight = Math.max(1, Math.round(crop.height * scaleY));
-
-  return {
-    actualCropX,
-    actualCropY,
-    actualCropWidth,
-    actualCropHeight,
-  };
-};
-
-// Render the crop at the final passport size so downloads stay print-ready.
-function renderCroppedCanvas(source, crop, outputWidth, outputHeight, addBorder, dpi) {
-  const canvas = document.createElement('canvas');
-  const {
-    actualCropX,
-    actualCropY,
-    actualCropWidth,
-    actualCropHeight,
-  } = crop;
-
-  canvas.width = Math.max(1, Math.round(outputWidth || actualCropWidth));
-  canvas.height = Math.max(1, Math.round(outputHeight || actualCropHeight));
-  const ctx = canvas.getContext('2d');
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-
-  ctx.drawImage(
-    source,
-    actualCropX,
-    actualCropY,
-    actualCropWidth,
-    actualCropHeight,
-    0,
-    0,
-    canvas.width,
-    canvas.height
-  );
-
-  if (addBorder) {
-    const borderWidth = Math.max(2, Math.round(dpi / 150));
-    const offset = borderWidth / 2;
-    ctx.strokeStyle = 'black';
-    ctx.lineWidth = borderWidth;
-    ctx.strokeRect(offset, offset, canvas.width - borderWidth, canvas.height - borderWidth);
-  }
-
-  return {
-    canvas,
-    dataUrl: canvas.toDataURL('image/png'),
-    width: actualCropWidth,
-    height: actualCropHeight,
-  };
-}
+import { convertToPixels } from '../utils/dimensions';
+import {
+  getActualCropDimensions,
+  loadImage,
+  MAX_ROTATION_DEGREES,
+  PREVIEW_MAX_DIMENSION,
+  renderAdjustedCanvas,
+  renderCroppedCanvas,
+  ROTATION_STEP,
+} from '../utils/passportEditor';
 
 
 const Editor = ({ uploadedImage, onCrop, passportDimensions, dpi = 300, addBorder = false }) => {
@@ -383,19 +274,14 @@ const Editor = ({ uploadedImage, onCrop, passportDimensions, dpi = 300, addBorde
               >
                 Apply Crop
               </Button>
-              <DropdownButton
+              <FormatDownloadDropdown
                 id="dropdown-download-cropped-button"
                 title={downloadFormat ? `Downloading ${downloadFormat}...` : 'Download Cropped Photo'}
                 variant="outline-primary"
                 disabled={!completedCrop?.width || !completedCrop?.height || !!downloadFormat || isLoadingSourceImage || !sourceImage}
-              >
-                <Dropdown.Item onClick={() => handleDownloadCroppedPhoto('PNG')}>
-                  Download as PNG
-                </Dropdown.Item>
-                <Dropdown.Item onClick={() => handleDownloadCroppedPhoto('JPG')}>
-                  Download as JPG
-                </Dropdown.Item>
-              </DropdownButton>
+                formats={['PNG', 'JPG']}
+                onSelect={handleDownloadCroppedPhoto}
+              />
             </div>
             {showConfirmation && (
               <Alert variant="success" className="mt-3">

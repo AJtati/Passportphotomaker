@@ -1,7 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Row, Col, Card, Form, Button, InputGroup, DropdownButton, Dropdown, Spinner, Alert } from 'react-bootstrap';
+import { Row, Col, Card, Form, Button, InputGroup, Spinner, Alert } from 'react-bootstrap';
 import { jsPDF } from 'jspdf';
+import FormatDownloadDropdown from './FormatDownloadDropdown';
 import { saveBlob } from '../utils/fileDownload';
+import { loadPdfJs } from '../utils/pdfjs';
+
+const revokeObjectUrl = (value) => {
+  if (typeof value === 'string' && value.startsWith('blob:')) {
+    URL.revokeObjectURL(value);
+  }
+};
 
 const ImageResizer = () => {
   const [uploadedImage, setUploadedImage] = useState(null);
@@ -88,6 +96,8 @@ const ImageResizer = () => {
   useEffect(() => {
     drawPreviewCanvas();
   }, [finalProcessedImage]);
+
+  useEffect(() => () => revokeObjectUrl(finalProcessedImage), [finalProcessedImage]);
 
   // Confirmation message effects
   useEffect(() => {
@@ -250,64 +260,6 @@ const ImageResizer = () => {
     await saveBlob(blob, 'compressed.pdf', 'application/pdf');
   };
 
-  const loadPdfJsLibrary = () =>
-    new Promise((resolve, reject) => {
-      const candidates = [
-        {
-          scriptSrc: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
-          workerSrc: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
-        },
-        {
-          scriptSrc: 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js',
-          workerSrc: 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js',
-        },
-      ];
-
-      if (window.pdfjsLib) {
-        resolve({ pdfjsLib: window.pdfjsLib, workerSrc: candidates[0].workerSrc });
-        return;
-      }
-
-      const tryCandidate = (index) => {
-        if (index >= candidates.length) {
-          reject(new Error('Failed to load PDF engine.'));
-          return;
-        }
-
-        const candidate = candidates[index];
-        const existingScript = document.querySelector(`script[data-pdfjs-src="${candidate.scriptSrc}"]`);
-        if (existingScript) {
-          if (window.pdfjsLib) {
-            resolve({ pdfjsLib: window.pdfjsLib, workerSrc: candidate.workerSrc });
-            return;
-          }
-          existingScript.addEventListener(
-            'load',
-            () => {
-              if (window.pdfjsLib) resolve({ pdfjsLib: window.pdfjsLib, workerSrc: candidate.workerSrc });
-              else tryCandidate(index + 1);
-            },
-            { once: true }
-          );
-          existingScript.addEventListener('error', () => tryCandidate(index + 1), { once: true });
-          return;
-        }
-
-        const script = document.createElement('script');
-        script.src = candidate.scriptSrc;
-        script.async = true;
-        script.dataset.pdfjsSrc = candidate.scriptSrc;
-        script.onload = () => {
-          if (window.pdfjsLib) resolve({ pdfjsLib: window.pdfjsLib, workerSrc: candidate.workerSrc });
-          else tryCandidate(index + 1);
-        };
-        script.onerror = () => tryCandidate(index + 1);
-        document.body.appendChild(script);
-      };
-
-      tryCandidate(0);
-    });
-
   const buildCompressedPdfBlob = async (pdfDocument, quality, renderScale) => {
     let doc = null;
     for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
@@ -347,11 +299,10 @@ const ImageResizer = () => {
 
     setProcessingPdfCompression(true);
     try {
-      const { pdfjsLib, workerSrc } = await loadPdfJsLibrary();
+      const pdfjsLib = await loadPdfJs();
       if (!pdfjsLib) {
         throw new Error('PDF engine unavailable.');
       }
-      pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
       const fileBytes = await uploadedPdfFile.arrayBuffer();
       const loadingTask = pdfjsLib.getDocument({ data: fileBytes });
       const pdfDocument = await loadingTask.promise;
@@ -707,13 +658,12 @@ const ImageResizer = () => {
                 </div>
                 {currentFileSizeKB && <p className="text-center">Current Size: {currentFileSizeKB} KB</p>}
                 <div className="d-grid gap-2 mt-3">
-                  <DropdownButton
+                  <FormatDownloadDropdown
                     id="dropdown-download-resize-button" title="Download Processed Image" size="lg"
                     variant="primary"
-                  >
-                    <Dropdown.Item onClick={() => handleDownload('JPG')}>Download as JPG</Dropdown.Item>
-                    <Dropdown.Item onClick={() => handleDownload('PNG')}>Download as PNG</Dropdown.Item>
-                  </DropdownButton>
+                    formats={['JPG', 'PNG']}
+                    onSelect={handleDownload}
+                  />
                 </div>
               </>
             ) : (

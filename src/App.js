@@ -6,9 +6,9 @@ import Preview from './components/Preview';
 import MultiPhoto from './components/MultiPhoto';
 import ImageResizer from './components/ImageResizer';
 import CollagePrint from './components/CollagePrint';
+import FormatDownloadDropdown from './components/FormatDownloadDropdown';
 import Logo from './components/Logo';
-import { jsPDF } from 'jspdf';
-import { saveCanvasImage, savePdf } from './utils/fileDownload';
+import { saveCanvasDocument } from './utils/canvasExport';
 import './styles/App.css';
 
 // --- Constants ---
@@ -229,14 +229,16 @@ function PassportPhotoCreator() {
     const canvas = previewCanvasRef.current;
     if (!canvas) { alert("Preview canvas not ready."); return; }
     try {
-      if (format === 'PDF') {
-        const orientation = canvas.width > canvas.height ? 'l' : 'p';
-        const pdf = new jsPDF(orientation, paper.unit, [paper.width, paper.height]);
-        pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', 0, 0, paper.width, paper.height);
-        await savePdf(pdf, 'passport_photos.pdf');
-      } else {
-        await saveCanvasImage(canvas, format, `passport_photos.${format.toLowerCase()}`, 1.0);
-      }
+      await saveCanvasDocument(canvas, format, {
+        filename: `passport_photos.${format.toLowerCase()}`,
+        quality: 1.0,
+        pdfOptions: {
+          filename: 'passport_photos.pdf',
+          unit: paper.unit,
+          width: paper.width,
+          height: paper.height,
+        },
+      });
     } catch (error) {
       alert(`Download failed: ${error.message}`);
     }
@@ -263,14 +265,12 @@ function PassportPhotoCreator() {
           addBorder={addBorder} dpi={DPI}
         />
         <div className="d-grid gap-2 mt-3">
-          <DropdownButton
+          <FormatDownloadDropdown
             id="dropdown-download-button" title="Download Print-Ready File" size="lg"
             variant="primary" disabled={!croppedImage}
-          >
-            <Dropdown.Item onClick={() => handleDownload('PDF')}>Download as PDF</Dropdown.Item>
-            <Dropdown.Item onClick={() => handleDownload('JPG')}>Download as JPG</Dropdown.Item>
-            <Dropdown.Item onClick={() => handleDownload('PNG')}>Download as PNG</Dropdown.Item>
-          </DropdownButton>
+            formats={['PDF', 'JPG', 'PNG']}
+            onSelect={handleDownload}
+          />
         </div>
       </Col>
     </Row>

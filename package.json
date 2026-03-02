@@ -1,6 +1,6 @@
 {
   "name": "passport-photo-app",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Passport photo creation and print utility",
   "author": "AJtati",
   "private": true,

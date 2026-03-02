@@ -253,6 +253,7 @@ function PassportPhotoCreator() {
         <Editor 
           uploadedImage={uploadedImage} onCrop={handleCropApplied} passportDimensions={passport}
           dpi={DPI}
+          addBorder={addBorder}
           key={passport.width / passport.height} 
         />
       </Col>

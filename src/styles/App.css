@@ -165,10 +165,17 @@ h1, h2, h3 {
   border-radius: 10px;
   padding: 0.6rem;
   background: var(--surface-subtle);
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .multi-photo-item.has-image {
   background: var(--surface);
+}
+
+.multi-photo-item.is-selected {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 1px rgba(13, 110, 253, 0.3);
 }
 
 .multi-photo-preview-wrap {
@@ -216,4 +223,46 @@ h1, h2, h3 {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+.multi-photo-canvas-wrap,
+.multi-photo-canvas {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.multi-photo-preview-stage {
+  position: relative;
+  width: min(100%, 900px);
+  margin: 0 auto;
+}
+
+.multi-photo-canvas {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: block;
+  transform-origin: center;
+}
+
+.passport-crop-editor,
+.passport-crop-editor *,
+.passport-crop-image {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.passport-crop-editor,
+.passport-crop-editor .ReactCrop__crop-selection,
+.passport-crop-editor .ReactCrop__drag-handle,
+.passport-crop-editor .ReactCrop__drag-elements,
+.passport-crop-image {
+  touch-action: none;
+}
+
+.passport-crop-image {
+  -webkit-user-drag: none;
 }

@@ -229,6 +229,7 @@ const Editor = ({ uploadedImage, onCrop, passportDimensions, dpi = 300, addBorde
         {uploadedImage ? (
           <div>
             <ReactCrop
+              className="passport-crop-editor"
               crop={crop}
               onChange={c => setCrop(c)}
               onComplete={c => setCompletedCrop(c)}
@@ -236,7 +237,16 @@ const Editor = ({ uploadedImage, onCrop, passportDimensions, dpi = 300, addBorde
               minWidth={100}
               ruleOfThirds
             >
-              <img ref={imgRef} src={editorImage || uploadedImage} alt="To be cropped" style={{ maxWidth: '100%' }} onLoad={onImageLoad} />
+              <img
+                ref={imgRef}
+                className="passport-crop-image"
+                src={editorImage || uploadedImage}
+                alt="To be cropped"
+                draggable={false}
+                onDragStart={(event) => event.preventDefault()}
+                style={{ maxWidth: '100%' }}
+                onLoad={onImageLoad}
+              />
             </ReactCrop>
             <Form.Group className="mt-3">
               <div className="d-flex justify-content-between align-items-center">

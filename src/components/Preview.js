@@ -2,6 +2,38 @@ import React, { useRef, useEffect, forwardRef } from 'react';
 import { Card } from 'react-bootstrap';
 import { convertToPixels } from '../utils/dimensions';
 
+const drawCutGuides = (ctx, { cols, rows, spacing, startX, startY, photoWidthPx, photoHeightPx, gridWidth, gridHeight, dpi }) => {
+  if (cols <= 1 && rows <= 1) {
+    return;
+  }
+
+  ctx.save();
+  ctx.strokeStyle = '#6c757d';
+  ctx.lineWidth = Math.max(1, Math.round(dpi / 300));
+  ctx.setLineDash([
+    Math.max(4, Math.round(dpi / 50)),
+    Math.max(3, Math.round(dpi / 75)),
+  ]);
+
+  for (let col = 0; col < cols - 1; col += 1) {
+    const guideX = startX + (col + 1) * photoWidthPx + col * spacing + (spacing / 2);
+    ctx.beginPath();
+    ctx.moveTo(guideX, startY);
+    ctx.lineTo(guideX, startY + gridHeight);
+    ctx.stroke();
+  }
+
+  for (let row = 0; row < rows - 1; row += 1) {
+    const guideY = startY + (row + 1) * photoHeightPx + row * spacing + (spacing / 2);
+    ctx.beginPath();
+    ctx.moveTo(startX, guideY);
+    ctx.lineTo(startX + gridWidth, guideY);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+};
+
 const Preview = forwardRef(({ paper, passport, croppedImage, addBorder, dpi }, ref) => {
   const photoPlaceholder = useRef(null);
 
@@ -96,6 +128,19 @@ const Preview = forwardRef(({ paper, passport, croppedImage, addBorder, dpi }, r
         }
       }
     }
+
+    drawCutGuides(ctx, {
+      cols,
+      rows,
+      spacing,
+      startX,
+      startY,
+      photoWidthPx,
+      photoHeightPx,
+      gridWidth,
+      gridHeight,
+      dpi,
+    });
   };
 
   useEffect(() => {
@@ -106,7 +151,7 @@ const Preview = forwardRef(({ paper, passport, croppedImage, addBorder, dpi }, r
     <Card>
       <Card.Body>
         <Card.Title>Step 3: Preview & Download</Card.Title>
-        <p>A real-time preview of the final print layout.</p>
+        <p>A real-time preview of the final print layout with dashed cut guides between photos.</p>
         <div className="text-center themed-canvas-wrap" style={{ padding: '1rem', overflowX: 'auto' }}>
           <canvas ref={ref} style={{ width: '100%', backgroundColor: 'white' }} />
         </div>

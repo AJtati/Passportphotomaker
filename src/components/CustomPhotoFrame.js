@@ -304,11 +304,18 @@ const CustomPhotoFrame = () => {
     });
   }, [frame.width, frame.height]);
 
-  const drawCanvas = useCallback((currentPhoto = photoRef.current, targetCanvas = canvasRef.current, usePreviewImage = true) => {
+  const drawCanvas = useCallback((
+    currentPhoto = photoRef.current,
+    targetCanvas = canvasRef.current,
+    usePreviewImage = true,
+    options = {}
+  ) => {
     const canvas = targetCanvas;
     if (!canvas) {
       return;
     }
+
+    const { showGridOverlay = showGrid, showCutMarks = true, showFrameOutline = true } = options;
 
     const placement = getFramePlacement(paper, frame);
     framePlacementRef.current = placement;
@@ -334,9 +341,11 @@ const CustomPhotoFrame = () => {
 
     const { frameX, frameY, frameWidthPx, frameHeightPx } = placement;
 
-    ctx.strokeStyle = '#adb5bd';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(frameX, frameY, frameWidthPx, frameHeightPx);
+    if (showFrameOutline) {
+      ctx.strokeStyle = '#adb5bd';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(frameX, frameY, frameWidthPx, frameHeightPx);
+    }
 
     if (currentPhoto?.image?.complete) {
       ctx.save();
@@ -351,11 +360,13 @@ const CustomPhotoFrame = () => {
       ctx.fillText('Upload a photo', frameX + frameWidthPx / 2, frameY + frameHeightPx / 2);
     }
 
-    if (showGrid) {
+    if (showGridOverlay) {
       drawAlignmentGrid(ctx, frameX, frameY, frameWidthPx, frameHeightPx);
     }
 
-    drawCutMarks(ctx, frameX, frameY, frameWidthPx, frameHeightPx, canvas.width, canvas.height);
+    if (showCutMarks) {
+      drawCutMarks(ctx, frameX, frameY, frameWidthPx, frameHeightPx, canvas.width, canvas.height);
+    }
   }, [frame, paper, showGrid]);
 
   useEffect(() => {
@@ -800,26 +811,22 @@ const CustomPhotoFrame = () => {
     }
 
     const exportCanvas = document.createElement('canvas');
-    exportCanvas.width = Math.max(1, Math.round(placement.frameWidthPx));
-    exportCanvas.height = Math.max(1, Math.round(placement.frameHeightPx));
-
-    const ctx = exportCanvas.getContext('2d');
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
-    drawCroppedPhoto(ctx, photoRef.current, exportCanvas.width, exportCanvas.height, false);
+    drawCanvas(photoRef.current, exportCanvas, false, {
+      showGridOverlay: false,
+      showCutMarks: false,
+      showFrameOutline: false,
+    });
 
     try {
       await saveCanvasDocument(exportCanvas, format, {
-        filename: `cropped-photo.${format.toLowerCase()}`,
+        filename: `print-ready-photo.${format.toLowerCase()}`,
         quality: 1.0,
         pdfOptions: {
-          filename: 'cropped-photo.pdf',
-          unit: frame.unit,
-          width: frame.width,
-          height: frame.height,
-          orientation: frame.width > frame.height ? 'l' : 'p',
+          filename: 'print-ready-photo.pdf',
+          unit: paper.unit,
+          width: paper.width,
+          height: paper.height,
+          orientation: paper.width > paper.height ? 'l' : 'p',
         },
       });
     } catch (error) {
@@ -1005,7 +1012,7 @@ const CustomPhotoFrame = () => {
         <div className="d-grid gap-2 mt-3">
           <FormatDownloadDropdown
             id="dropdown-download-custom-frame-button"
-            title="Download Cropped Photo"
+            title="Download Print-Ready Page"
             size="lg"
             variant="primary"
             disabled={!photo || Boolean(placement.error)}

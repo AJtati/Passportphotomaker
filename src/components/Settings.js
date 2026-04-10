@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, Form, Row, Col, InputGroup } from 'react-bootstrap';
 
 const Settings = ({
@@ -11,6 +11,17 @@ const Settings = ({
   onSettingsChange,
   presets
 }) => {
+  const [customPassportDraft, setCustomPassportDraft] = useState({
+    width: String(passport.width),
+    height: String(passport.height),
+  });
+
+  useEffect(() => {
+    setCustomPassportDraft({
+      width: String(passport.width),
+      height: String(passport.height),
+    });
+  }, [passport.width, passport.height]);
 
   const handlePassportPresetChange = (e) => {
     const preset = e.target.value;
@@ -24,16 +35,55 @@ const Settings = ({
 
   const handleCustomPassportChange = (e) => {
     const { name, value } = e.target;
-    
-    let numericValue = name === 'unit' ? value : parseFloat(value);
-    if (name !== 'unit' && isNaN(numericValue)) {
-      numericValue = 0; // Default to 0 if input is not a valid number
+
+    if (name === 'unit') {
+      onSettingsChange({
+        passportPreset: 'custom',
+        passport: { ...passport, unit: value }
+      });
+      return;
     }
 
-    onSettingsChange({
-      passportPreset: 'custom',
-      passport: { ...passport, [name]: numericValue }
-    });
+    setCustomPassportDraft((current) => ({
+      ...current,
+      [name]: value
+    }));
+
+    if (value.trim() === '') {
+      onSettingsChange({ passportPreset: 'custom' });
+      return;
+    }
+
+    const numericValue = parseFloat(value);
+    if (Number.isFinite(numericValue) && numericValue > 0) {
+      onSettingsChange({
+        passportPreset: 'custom',
+        passport: { ...passport, [name]: numericValue }
+      });
+    }
+  };
+
+  const handleCustomPassportBlur = (e) => {
+    const { name, value } = e.target;
+    const numericValue = parseFloat(value);
+
+    if (Number.isFinite(numericValue) && numericValue > 0) {
+      const normalizedValue = String(numericValue);
+      setCustomPassportDraft((current) => ({
+        ...current,
+        [name]: normalizedValue
+      }));
+      onSettingsChange({
+        passportPreset: 'custom',
+        passport: { ...passport, [name]: numericValue }
+      });
+      return;
+    }
+
+    setCustomPassportDraft((current) => ({
+      ...current,
+      [name]: String(passport[name])
+    }));
   };
   
   const handleFileChange = (e) => {
@@ -77,24 +127,24 @@ const Settings = ({
             <Col>
               <InputGroup>
                 <Form.Control
-                  type="number"
+                  type="text"
                   name="width"
-                  min="0.1"
-                  step="0.1"
-                  value={passport.width}
+                  inputMode="decimal"
+                  value={customPassportDraft.width}
                   onChange={handleCustomPassportChange}
+                  onBlur={handleCustomPassportBlur}
                 />
               </InputGroup>
             </Col>
             <Col>
               <InputGroup>
                 <Form.Control
-                  type="number"
+                  type="text"
                   name="height"
-                  min="0.1"
-                  step="0.1"
-                  value={passport.height}
+                  inputMode="decimal"
+                  value={customPassportDraft.height}
                   onChange={handleCustomPassportChange}
+                  onBlur={handleCustomPassportBlur}
                 />
               </InputGroup>
             </Col>

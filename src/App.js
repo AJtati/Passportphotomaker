@@ -6,6 +6,7 @@ import Preview from './components/Preview';
 import MultiPhoto from './components/MultiPhoto';
 import ImageResizer from './components/ImageResizer';
 import CollagePrint from './components/CollagePrint';
+import CustomPhotoFrame from './components/CustomPhotoFrame';
 import FormatDownloadDropdown from './components/FormatDownloadDropdown';
 import Logo from './components/Logo';
 import { saveCanvasDocument } from './utils/canvasExport';
@@ -29,6 +30,7 @@ const TAB_ROUTES = {
   multi: '/multi',
   resize: '/resize',
   collage: '/collage',
+  frame: '/frame',
 };
 
 const ROUTE_TO_TAB = Object.fromEntries(
@@ -135,6 +137,9 @@ function App() {
               <Nav.Item>
                 <Nav.Link eventKey="collage">Collage Print</Nav.Link>
               </Nav.Item>
+              <Nav.Item>
+                <Nav.Link eventKey="frame">Custom Photo Frame</Nav.Link>
+              </Nav.Item>
             </Nav>
             <DropdownButton
               id="theme-dropdown"
@@ -157,6 +162,7 @@ function App() {
         {activeTab === 'multi' && <MultiPhoto />}
         {activeTab === 'resize' && <ImageResizer />}
         {activeTab === 'collage' && <CollagePrint />}
+        {activeTab === 'frame' && <CustomPhotoFrame />}
       </Container>
     </>
   );

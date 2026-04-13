@@ -70,6 +70,7 @@ const Preview = forwardRef(({
   photoOrientation,
   spacingMm,
   addBorder,
+  addCuttingGuide,
   dpi,
   onLayoutChange,
 }, ref) => {
@@ -167,6 +168,20 @@ const Preview = forwardRef(({
             ctx.lineWidth = 2; // 2px border at 300 DPI is very thin
             ctx.strokeRect(x, y, photoWidthPx, photoHeightPx);
           }
+
+          // --- Draw Cutting Guide if enabled ---
+          if (addCuttingGuide) {
+            const guideOffset = convertToPixels(2, 'mm', dpi);
+            ctx.save();
+            ctx.strokeStyle = '#6c757d';
+            ctx.lineWidth = Math.max(1, Math.round(dpi / 300));
+            ctx.setLineDash([
+              Math.max(4, Math.round(dpi / 50)),
+              Math.max(3, Math.round(dpi / 75)),
+            ]);
+            ctx.strokeRect(x - guideOffset, y - guideOffset, photoWidthPx + 2 * guideOffset, photoHeightPx + 2 * guideOffset);
+            ctx.restore();
+          }
         }
       }
     }
@@ -183,7 +198,7 @@ const Preview = forwardRef(({
       gridHeight,
       dpi,
     });
-  }, [addBorder, dpi, onLayoutChange, paper, passport, photoOrientation, ref, spacingMm, croppedPhoto]);
+  }, [addBorder, addCuttingGuide, dpi, onLayoutChange, paper, passport, photoOrientation, ref, spacingMm, croppedPhoto]);
 
   useEffect(() => {
     drawCanvas();

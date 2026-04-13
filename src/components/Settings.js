@@ -7,6 +7,7 @@ const Settings = ({
   passportPreset,
   paperPreset,
   addBorder,
+  addCuttingGuide,
   onImageUpload,
   onSettingsChange,
   presets
@@ -96,6 +97,10 @@ const Settings = ({
     onSettingsChange({ addBorder: e.target.checked });
   };
 
+  const handleCuttingGuideChange = (e) => {
+    onSettingsChange({ addCuttingGuide: e.target.checked });
+  };
+
   return (
     <Card>
       <Card.Body>
@@ -180,6 +185,13 @@ const Settings = ({
             label="Add a thin border to each photo"
             checked={addBorder}
             onChange={handleBorderChange}
+          />
+          <Form.Check 
+            type="switch"
+            id="cutting-guide-switch"
+            label="Add cutting guide lines (2mm)"
+            checked={addCuttingGuide}
+            onChange={handleCuttingGuideChange}
           />
         </Form.Group>
 

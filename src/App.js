@@ -181,6 +181,7 @@ function PassportPhotoCreator() {
   const [passportPreset, setPassportPreset] = useState('india');
   const [paperPreset, setPaperPreset] = useState('a4');
   const [addBorder, setAddBorder] = useState(false);
+  const [addCuttingGuide, setAddCuttingGuide] = useState(false);
   const [photoOrientation, setPhotoOrientation] = useState('portrait');
   const [photoSpacing, setPhotoSpacing] = useState(2);
   const [layoutSummary, setLayoutSummary] = useState({ cols: 0, rows: 0, total: 0 });
@@ -213,6 +214,7 @@ function PassportPhotoCreator() {
     }
     if (newSettings.paper) setPaper(newSettings.paper);
     if (newSettings.addBorder !== undefined) setAddBorder(newSettings.addBorder);
+    if (newSettings.addCuttingGuide !== undefined) setAddCuttingGuide(newSettings.addCuttingGuide);
     if (newSettings.passportPreset) {
       if (newSettings.passportPreset !== passportPreset) shouldResetCrop = true;
       setPassportPreset(newSettings.passportPreset);
@@ -261,7 +263,7 @@ function PassportPhotoCreator() {
       <Col md={5} className="d-flex flex-column" style={{gap: '1rem'}}>
         <Settings
           passport={passport} paper={paper} passportPreset={passportPreset} paperPreset={paperPreset}
-          addBorder={addBorder} onImageUpload={handleImageUpload} onSettingsChange={handleSettingsChange}
+          addBorder={addBorder} addCuttingGuide={addCuttingGuide} onImageUpload={handleImageUpload} onSettingsChange={handleSettingsChange}
           presets={{ passport: PRESET_PASSPORT_SIZES, paper: PRESET_PAPER_SIZES }}
         />
         <Editor 
@@ -313,6 +315,7 @@ function PassportPhotoCreator() {
           photoOrientation={photoOrientation}
           spacingMm={photoSpacing}
           addBorder={addBorder}
+          addCuttingGuide={addCuttingGuide}
           dpi={DPI}
           onLayoutChange={setLayoutSummary}
         />

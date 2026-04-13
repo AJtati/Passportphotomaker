@@ -12,6 +12,7 @@ import {
   PREVIEW_MAX_DIMENSION,
   renderAdjustedCanvas,
   renderCroppedCanvas,
+  renderSourceCropCanvas,
   ROTATION_STEP,
 } from '../utils/passportEditor';
 
@@ -184,6 +185,7 @@ const Editor = ({ uploadedImage, onCrop, passportDimensions, dpi = 300, addBorde
       addBorder,
       dpi
     );
+    const sourceCrop = renderSourceCropCanvas(adjustedSource, actualCrop, addBorder, dpi);
     const minWidthPx = Math.round(outputWidth);
     const minHeightPx = Math.round(outputHeight);
 
@@ -195,14 +197,23 @@ const Editor = ({ uploadedImage, onCrop, passportDimensions, dpi = 300, addBorde
       setQualityWarning('');
     }
 
-    return cropped;
+    return {
+      ...cropped,
+      sourceCanvas: sourceCrop.canvas,
+      sourceDataUrl: sourceCrop.dataUrl,
+    };
   };
 
   const handleCrop = async () => {
     const cropped = await buildCroppedPhoto();
     if (!cropped) return;
 
-    onCrop(cropped.dataUrl);
+    onCrop({
+      previewUrl: cropped.dataUrl,
+      sourceUrl: cropped.sourceDataUrl,
+      width: cropped.width,
+      height: cropped.height,
+    });
     setShowConfirmation(true);
   };
 
@@ -213,7 +224,7 @@ const Editor = ({ uploadedImage, onCrop, passportDimensions, dpi = 300, addBorde
     try {
       setDownloadFormat(format);
       const extension = format.toLowerCase();
-      await saveCanvasImage(cropped.canvas, format, `cropped_passport_photo.${extension}`, 1.0);
+      await saveCanvasImage(cropped.sourceCanvas, format, `cropped_passport_photo.${extension}`, 1.0);
     } catch (error) {
       alert(`Download failed: ${error.message}`);
     } finally {

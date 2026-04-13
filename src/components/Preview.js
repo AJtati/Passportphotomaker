@@ -1,6 +1,35 @@
-import React, { useRef, useEffect, forwardRef } from 'react';
+import React, { useRef, useEffect, useCallback, forwardRef } from 'react';
 import { Card } from 'react-bootstrap';
 import { convertToPixels } from '../utils/dimensions';
+
+const getOrientedDimensions = (dimensions, orientation) => {
+  if (orientation !== 'landscape') {
+    return dimensions;
+  }
+
+  return {
+    ...dimensions,
+    width: dimensions.height,
+    height: dimensions.width,
+  };
+};
+
+const drawPhotoTile = (ctx, image, x, y, width, height, orientation) => {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, width, height);
+  ctx.clip();
+
+  if (orientation === 'landscape') {
+    ctx.translate(x + width / 2, y + height / 2);
+    ctx.rotate(Math.PI / 2);
+    ctx.drawImage(image, -height / 2, -width / 2, height, width);
+  } else {
+    ctx.drawImage(image, x, y, width, height);
+  }
+
+  ctx.restore();
+};
 
 const drawCutGuides = (ctx, { cols, rows, spacing, startX, startY, photoWidthPx, photoHeightPx, gridWidth, gridHeight, dpi }) => {
   if (cols <= 1 && rows <= 1) {
@@ -34,13 +63,22 @@ const drawCutGuides = (ctx, { cols, rows, spacing, startX, startY, photoWidthPx,
   ctx.restore();
 };
 
-const Preview = forwardRef(({ paper, passport, croppedImage, addBorder, dpi }, ref) => {
+const Preview = forwardRef(({
+  paper,
+  passport,
+  croppedPhoto,
+  photoOrientation,
+  spacingMm,
+  addBorder,
+  dpi,
+  onLayoutChange,
+}, ref) => {
   const photoPlaceholder = useRef(null);
 
   useEffect(() => {
-    if (croppedImage) {
+    if (croppedPhoto?.sourceUrl || croppedPhoto?.previewUrl) {
       const img = new Image();
-      img.src = croppedImage;
+      img.src = croppedPhoto.sourceUrl || croppedPhoto.previewUrl;
       img.onload = () => {
         photoPlaceholder.current = img;
         drawCanvas();
@@ -49,17 +87,18 @@ const Preview = forwardRef(({ paper, passport, croppedImage, addBorder, dpi }, r
       photoPlaceholder.current = null;
       drawCanvas();
     }
-  }, [croppedImage]);
+  }, [croppedPhoto]);
 
-  const drawCanvas = () => {
+  const drawCanvas = useCallback(() => {
     const canvas = ref.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
+    const orientedPassport = getOrientedDimensions(passport, photoOrientation);
     const paperWidthPx = convertToPixels(paper.width, paper.unit, dpi);
     const paperHeightPx = convertToPixels(paper.height, paper.unit, dpi);
-    const photoWidthPx = convertToPixels(passport.width, passport.unit, dpi);
-    const photoHeightPx = convertToPixels(passport.height, passport.unit, dpi);
+    const photoWidthPx = convertToPixels(orientedPassport.width, orientedPassport.unit, dpi);
+    const photoHeightPx = convertToPixels(orientedPassport.height, orientedPassport.unit, dpi);
 
     if (paperWidthPx <= 0 || paperHeightPx <= 0 || photoWidthPx <= 0 || photoHeightPx <= 0) {
       canvas.width = Math.max(1, paperWidthPx || 1);
@@ -70,6 +109,7 @@ const Preview = forwardRef(({ paper, passport, croppedImage, addBorder, dpi }, r
       ctx.textAlign = 'center';
       ctx.font = `${Math.min(28, canvas.width / 12)}px Arial`;
       ctx.fillText('Enter valid positive dimensions', canvas.width / 2, canvas.height / 2);
+      onLayoutChange?.({ cols: 0, rows: 0, total: 0 });
       return;
     }
 
@@ -82,15 +122,17 @@ const Preview = forwardRef(({ paper, passport, croppedImage, addBorder, dpi }, r
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const fixedMargin = convertToPixels(5, 'mm', dpi);
-    const spacing = convertToPixels(2, 'mm', dpi);
+    const safeSpacingMm = Math.max(0, Number.isFinite(spacingMm) ? spacingMm : 0);
+    const spacing = convertToPixels(safeSpacingMm, 'mm', dpi);
     
     const availableWidth = paperWidthPx - (fixedMargin * 2);
     const availableHeight = paperHeightPx - (fixedMargin * 2);
 
-    const cols = Math.floor((availableWidth + spacing) / (photoWidthPx + spacing));
-    const rows = Math.floor((availableHeight + spacing) / (photoHeightPx + spacing));
+    const cols = Math.max(0, Math.floor((availableWidth + spacing) / (photoWidthPx + spacing)));
+    const rows = Math.max(0, Math.floor((availableHeight + spacing) / (photoHeightPx + spacing)));
+    onLayoutChange?.({ cols, rows, total: cols * rows });
 
-    if (!croppedImage) {
+    if (!croppedPhoto) {
         ctx.fillStyle = '#6c757d';
         ctx.textAlign = 'center';
         ctx.font = `${Math.min(48, paperWidthPx / 10)}px Arial`;
@@ -117,7 +159,7 @@ const Preview = forwardRef(({ paper, passport, croppedImage, addBorder, dpi }, r
         const x = startX + c * (photoWidthPx + spacing);
         const y = startY + r * (photoHeightPx + spacing);
         if (photoPlaceholder.current) {
-          ctx.drawImage(photoPlaceholder.current, x, y, photoWidthPx, photoHeightPx);
+          drawPhotoTile(ctx, photoPlaceholder.current, x, y, photoWidthPx, photoHeightPx, photoOrientation);
           
           // --- Draw Border if enabled ---
           if (addBorder) {
@@ -141,11 +183,11 @@ const Preview = forwardRef(({ paper, passport, croppedImage, addBorder, dpi }, r
       gridHeight,
       dpi,
     });
-  };
+  }, [addBorder, dpi, onLayoutChange, paper, passport, photoOrientation, ref, spacingMm, croppedPhoto]);
 
   useEffect(() => {
     drawCanvas();
-  }, [paper, passport, dpi, croppedImage, addBorder, ref]);
+  }, [drawCanvas]);
 
   return (
     <Card>

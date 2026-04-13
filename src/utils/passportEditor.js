@@ -110,3 +110,45 @@ export const renderCroppedCanvas = (source, crop, outputWidth, outputHeight, add
     height: actualCropHeight,
   };
 };
+
+export const renderSourceCropCanvas = (source, crop, addBorder = false, dpi = 300) => {
+  const canvas = document.createElement('canvas');
+  const {
+    actualCropX,
+    actualCropY,
+    actualCropWidth,
+    actualCropHeight,
+  } = crop;
+
+  canvas.width = Math.max(1, Math.round(actualCropWidth));
+  canvas.height = Math.max(1, Math.round(actualCropHeight));
+
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  ctx.drawImage(
+    source,
+    actualCropX,
+    actualCropY,
+    actualCropWidth,
+    actualCropHeight,
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+
+  if (addBorder) {
+    const borderWidth = Math.max(2, Math.round(dpi / 150));
+    const offset = borderWidth / 2;
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = borderWidth;
+    ctx.strokeRect(offset, offset, canvas.width - borderWidth, canvas.height - borderWidth);
+  }
+
+  return {
+    canvas,
+    dataUrl: canvas.toDataURL('image/png'),
+  };
+};

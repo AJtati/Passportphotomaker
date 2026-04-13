@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Container, Row, Col, Navbar, DropdownButton, Dropdown, Nav } from 'react-bootstrap';
+import { Container, Row, Col, Navbar, DropdownButton, Dropdown, Nav, Form } from 'react-bootstrap';
 import Settings from './components/Settings';
 import Editor from './components/Editor';
 import Preview from './components/Preview';
@@ -175,12 +175,15 @@ function PassportPhotoCreator() {
   const previewSectionRef = useRef(null); // Ref for the preview section for scrolling
 
   const [uploadedImage, setUploadedImage] = useState(null);
-  const [croppedImage, setCroppedImage] = useState(null);
+  const [croppedPhoto, setCroppedPhoto] = useState(null);
   const [passport, setPassport] = useState(PRESET_PASSPORT_SIZES.india);
   const [paper, setPaper] = useState(PRESET_PAPER_SIZES.a4);
   const [passportPreset, setPassportPreset] = useState('india');
   const [paperPreset, setPaperPreset] = useState('a4');
   const [addBorder, setAddBorder] = useState(false);
+  const [photoOrientation, setPhotoOrientation] = useState('portrait');
+  const [photoSpacing, setPhotoSpacing] = useState(2);
+  const [layoutSummary, setLayoutSummary] = useState({ cols: 0, rows: 0, total: 0 });
 
   const sanitizePassport = (value) => {
     const safeWidth = Number.isFinite(value?.width) ? Math.max(0.1, value.width) : passport.width;
@@ -194,8 +197,8 @@ function PassportPhotoCreator() {
       const reader = new FileReader();
       reader.onload = (event) => {
         setUploadedImage(event.target.result);
-        setCroppedImage(null); 
-      }
+        setCroppedPhoto(null);
+      };
       reader.readAsDataURL(file);
     } else {
       alert("Please upload a valid image file (JPG, PNG).");
@@ -221,11 +224,11 @@ function PassportPhotoCreator() {
       setPaperPreset(newSettings.paperPreset);
       setPaper(PRESET_PAPER_SIZES[newSettings.paperPreset]);
     }
-    if (shouldResetCrop) setCroppedImage(null);
+    if (shouldResetCrop) setCroppedPhoto(null);
   };
 
-  const handleCropApplied = (croppedImageUrl) => {
-    setCroppedImage(croppedImageUrl);
+  const handleCropApplied = (photo) => {
+    setCroppedPhoto(photo);
     if (previewSectionRef.current) {
       previewSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -250,6 +253,9 @@ function PassportPhotoCreator() {
     }
   };
 
+  const spacingLabel = `${photoSpacing.toFixed(1)} mm`;
+  const totalPhotosLabel = layoutSummary.total === 1 ? '1 photo' : `${layoutSummary.total} photos`;
+
   return (
     <Row>
       <Col md={5} className="d-flex flex-column" style={{gap: '1rem'}}>
@@ -266,14 +272,54 @@ function PassportPhotoCreator() {
         />
       </Col>
       <Col md={7} ref={previewSectionRef} className="pb-5"> {/* Attach ref here and add pb-5 */}
+        <div className="passport-preview-toolbar mb-3">
+          <div className="passport-preview-toolbar__controls">
+            <Form.Group className="passport-preview-control">
+              <Form.Label className="mb-1">Photo Orientation</Form.Label>
+              <Form.Select
+                value={photoOrientation}
+                onChange={(event) => setPhotoOrientation(event.target.value)}
+                disabled={!croppedPhoto}
+              >
+                <option value="portrait">Portrait</option>
+                <option value="landscape">Landscape</option>
+              </Form.Select>
+            </Form.Group>
+            <Form.Group className="passport-preview-control passport-preview-control--slider">
+              <div className="d-flex justify-content-between align-items-center mb-1">
+                <Form.Label className="mb-0">Space Between Photos</Form.Label>
+                <span className="passport-preview-toolbar__value">{spacingLabel}</span>
+              </div>
+              <Form.Range
+                min={0}
+                max={12}
+                step={0.1}
+                value={photoSpacing}
+                onChange={(event) => setPhotoSpacing(Number(event.target.value))}
+                disabled={!croppedPhoto}
+              />
+            </Form.Group>
+          </div>
+          <div className="passport-preview-toolbar__stats">
+            <span className="passport-preview-toolbar__pill">{totalPhotosLabel}</span>
+            <span className="passport-preview-toolbar__pill">{layoutSummary.cols} x {layoutSummary.rows} grid</span>
+          </div>
+        </div>
         <Preview
-          ref={previewCanvasRef} paper={paper} passport={passport} croppedImage={croppedImage}
-          addBorder={addBorder} dpi={DPI}
+          ref={previewCanvasRef}
+          paper={paper}
+          passport={passport}
+          croppedPhoto={croppedPhoto}
+          photoOrientation={photoOrientation}
+          spacingMm={photoSpacing}
+          addBorder={addBorder}
+          dpi={DPI}
+          onLayoutChange={setLayoutSummary}
         />
         <div className="d-grid gap-2 mt-3">
           <FormatDownloadDropdown
             id="dropdown-download-button" title="Download Print-Ready File" size="lg"
-            variant="primary" disabled={!croppedImage}
+            variant="primary" disabled={!croppedPhoto}
             formats={['PDF', 'JPG', 'PNG']}
             onSelect={handleDownload}
           />

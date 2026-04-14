@@ -32,6 +32,14 @@
 3. don't ever touch working features only fix what user requested edits or  asked for
 4. Preserve the TV-first, premium, cinematic product direction unless the user explicitly changes it.
 
+## Cache Cleanup Rules
+
+- If rebuildable cache/output in this project grows beyond `1GB`, clean it proactively.
+- Safe cleanup targets include: `.next/`, `out/`, `dist/`, `build/`, `.firebase/`, `coverage/`, `.turbo/`, `.cache/`, and log files like `firebase-debug.log`.
+- Never delete source files, `.git`, deployment configuration, Firebase config, lockfiles, environment files, docs, or project memory/reference files.
+- Do not delete installed dependency folders such as `node_modules` unless the user explicitly asks.
+- Before deleting, confirm the target is generated/rebuildable and not required for current hosting or deployment state.
+
 ## Deployment Rules
 
 - Default Firebase deployment account for this repo is `choosindichaalu@gmail.com`.

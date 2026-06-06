@@ -9,7 +9,7 @@ const PREVIEW_IMAGE_MAX_DIMENSION = 1600;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 5;
 const ZOOM_STEP = 0.15;
-const SAFE_MARGIN_MM = 8;
+const SAFE_MARGIN_MM = 0;
 
 const PAPER_PRESETS = {
   a4: { width: 210, height: 297, unit: 'mm', name: 'A4 Portrait' },
@@ -32,6 +32,12 @@ const FRAME_PRESETS = {
 };
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const convertFromPixels = (pixels, unit, dpi) => {
+  if (unit === 'in') return pixels / dpi;
+  if (unit === 'mm') return (pixels / dpi) * 25.4;
+  return pixels;
+};
 
 const createPreviewImage = (sourceImage) =>
   new Promise((resolve) => {
@@ -267,6 +273,62 @@ const drawCroppedPhoto = (ctx, photo, frameWidthPx, frameHeightPx, usePreviewIma
   ctx.restore();
 };
 
+const drawResizeHandles = (ctx, frameX, frameY, frameWidth, frameHeight, paperWidth, paperHeight) => {
+  const handleRadius = Math.max(12, Math.round(Math.min(paperWidth, paperHeight) * 0.01));
+  const strokeWidth = Math.max(2, Math.round(handleRadius * 0.2));
+
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#0d6efd';
+  ctx.lineWidth = strokeWidth;
+
+  const positions = [
+    { x: frameX, y: frameY }, // TL
+    { x: frameX + frameWidth, y: frameY }, // TR
+    { x: frameX, y: frameY + frameHeight }, // BL
+    { x: frameX + frameWidth, y: frameY + frameHeight }, // BR
+    { x: frameX + frameWidth / 2, y: frameY }, // T
+    { x: frameX + frameWidth / 2, y: frameY + frameHeight }, // B
+    { x: frameX, y: frameY + frameHeight / 2 }, // L
+    { x: frameX + frameWidth, y: frameY + frameHeight / 2 }, // R
+  ];
+
+  positions.forEach((pos) => {
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, handleRadius, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.stroke();
+  });
+
+  ctx.restore();
+};
+
+const getHandleAtPoint = (point, frameX, frameY, frameWidthPx, frameHeightPx, paperWidthPx, paperHeightPx) => {
+  if (!point) return null;
+  const handleRadius = Math.max(12, Math.round(Math.min(paperWidthPx, paperHeightPx) * 0.01));
+  const hitRadius = Math.max(handleRadius * 5, 80);
+
+  const handles = [
+    { name: 'tl', x: frameX, y: frameY, cursor: 'nwse-resize' },
+    { name: 'tr', x: frameX + frameWidthPx, y: frameY, cursor: 'nesw-resize' },
+    { name: 'bl', x: frameX, y: frameY + frameHeightPx, cursor: 'nesw-resize' },
+    { name: 'br', x: frameX + frameWidthPx, y: frameY + frameHeightPx, cursor: 'nwse-resize' },
+    { name: 't', x: frameX + frameWidthPx / 2, y: frameY, cursor: 'ns-resize' },
+    { name: 'b', x: frameX + frameWidthPx / 2, y: frameY + frameHeightPx, cursor: 'ns-resize' },
+    { name: 'l', x: frameX, y: frameY + frameHeightPx / 2, cursor: 'ew-resize' },
+    { name: 'r', x: frameX + frameWidthPx, y: frameY + frameHeightPx / 2, cursor: 'ew-resize' },
+  ];
+
+  for (const h of handles) {
+    const dist = Math.hypot(point.x - h.x, point.y - h.y);
+    if (dist <= hitRadius) {
+      return h;
+    }
+  }
+
+  return null;
+};
+
 const CustomPhotoFrame = () => {
   const [paperPreset, setPaperPreset] = useState('a4');
   const [paper, setPaper] = useState(PAPER_PRESETS.a4);
@@ -345,6 +407,7 @@ const CustomPhotoFrame = () => {
       ctx.strokeStyle = '#adb5bd';
       ctx.lineWidth = 2;
       ctx.strokeRect(frameX, frameY, frameWidthPx, frameHeightPx);
+      drawResizeHandles(ctx, frameX, frameY, frameWidthPx, frameHeightPx, canvas.width, canvas.height);
     }
 
     if (currentPhoto?.image?.complete) {
@@ -541,42 +604,157 @@ const CustomPhotoFrame = () => {
   };
 
   const handleMouseDown = (event) => {
-    if (!photoRef.current) {
-      return;
-    }
-
     const point = getCanvasPointFromClient(event.clientX, event.clientY);
-    if (!hitFrame(point)) {
+    const placement = framePlacementRef.current;
+    if (!point || !placement || placement.error) {
       return;
     }
 
-    interactionRef.current = {
-      mode: 'pan',
-      lastPoint: point,
-    };
+    const { frameX, frameY, frameWidthPx, frameHeightPx, paperWidthPx, paperHeightPx } = placement;
+    const handle = getHandleAtPoint(point, frameX, frameY, frameWidthPx, frameHeightPx, paperWidthPx, paperHeightPx);
+    if (handle) {
+      interactionRef.current = {
+        mode: 'resize',
+        handle: handle.name,
+        startFrameWidth: frame.width,
+        startFrameHeight: frame.height,
+        startPoint: point,
+      };
+      return;
+    }
+
+    if (photoRef.current && hitFrame(point)) {
+      interactionRef.current = {
+        mode: 'pan',
+        lastPoint: point,
+      };
+      const canvas = canvasRef.current;
+      if (canvas) {
+        canvas.style.cursor = 'grabbing';
+      }
+    }
   };
 
   const handleMouseMove = (event) => {
-    if (!interactionRef.current || interactionRef.current.mode !== 'pan' || !photoRef.current) {
-      return;
-    }
-
-    event.preventDefault();
     const point = getCanvasPointFromClient(event.clientX, event.clientY);
-    if (!point) {
+    if (!point) return;
+
+    const canvas = canvasRef.current;
+    const placement = framePlacementRef.current;
+
+    if (interactionRef.current) {
+      event.preventDefault();
+      if (interactionRef.current.mode === 'pan' && photoRef.current) {
+        const dx = point.x - interactionRef.current.lastPoint.x;
+        const dy = point.y - interactionRef.current.lastPoint.y;
+        interactionRef.current.lastPoint = point;
+        const localDelta = toLocalDelta(dx, dy, photoRef.current.rotation);
+
+        updatePhotoLive((currentPhoto) => ({
+          ...currentPhoto,
+          offsetX: (currentPhoto.offsetX ?? 0) + localDelta.x,
+          offsetY: (currentPhoto.offsetY ?? 0) + localDelta.y,
+        }));
+      } else if (interactionRef.current.mode === 'resize' && placement && !placement.error) {
+        const startW = interactionRef.current.startFrameWidth;
+        const startH = interactionRef.current.startFrameHeight;
+        const dxPx = point.x - interactionRef.current.startPoint.x;
+        const dyPx = point.y - interactionRef.current.startPoint.y;
+
+        const dx = convertFromPixels(dxPx, frame.unit, DPI);
+        const dy = convertFromPixels(dyPx, frame.unit, DPI);
+
+        const paperWidthPx = convertToPixels(paper.width, paper.unit, DPI);
+        const paperHeightPx = convertToPixels(paper.height, paper.unit, DPI);
+        const safeMarginPx = convertToPixels(SAFE_MARGIN_MM, 'mm', DPI);
+        const maxAvailableWidthPx = Math.max(1, paperWidthPx - safeMarginPx * 2);
+        const maxAvailableHeightPx = Math.max(1, paperHeightPx - safeMarginPx * 2);
+
+        const maxW = convertFromPixels(maxAvailableWidthPx, frame.unit, DPI);
+        const maxH = convertFromPixels(maxAvailableHeightPx, frame.unit, DPI);
+        const minSize = frame.unit === 'in' ? 0.5 : 10;
+
+        const handleName = interactionRef.current.handle;
+        let newW = startW;
+        let newH = startH;
+
+        if (['tl', 'tr', 'bl', 'br'].includes(handleName)) {
+          let scaleFactor = 1;
+          if (handleName === 'br') {
+            if (Math.abs(dx / startW) > Math.abs(dy / startH)) {
+              scaleFactor = (startW + dx) / startW;
+            } else {
+              scaleFactor = (startH + dy) / startH;
+            }
+          } else if (handleName === 'tl') {
+            if (Math.abs(dx / startW) > Math.abs(dy / startH)) {
+              scaleFactor = (startW - dx) / startW;
+            } else {
+              scaleFactor = (startH - dy) / startH;
+            }
+          } else if (handleName === 'tr') {
+            if (Math.abs(dx / startW) > Math.abs(dy / startH)) {
+              scaleFactor = (startW + dx) / startW;
+            } else {
+              scaleFactor = (startH - dy) / startH;
+            }
+          } else if (handleName === 'bl') {
+            if (Math.abs(dx / startW) > Math.abs(dy / startH)) {
+              scaleFactor = (startW - dx) / startW;
+            } else {
+              scaleFactor = (startH + dy) / startH;
+            }
+          }
+
+          newW = startW * scaleFactor;
+          newH = startH * scaleFactor;
+
+          if (newW < minSize || newH < minSize) {
+            const minScale = Math.max(minSize / startW, minSize / startH);
+            newW = startW * minScale;
+            newH = startH * minScale;
+          }
+          if (newW > maxW || newH > maxH) {
+            const maxScale = Math.min(maxW / startW, maxH / startH);
+            newW = startW * maxScale;
+            newH = startH * maxScale;
+          }
+        } else {
+          if (handleName === 'l') {
+            newW = clamp(startW - dx, minSize, maxW);
+          } else if (handleName === 'r') {
+            newW = clamp(startW + dx, minSize, maxW);
+          } else if (handleName === 't') {
+            newH = clamp(startH - dy, minSize, maxH);
+          } else if (handleName === 'b') {
+            newH = clamp(startH + dy, minSize, maxH);
+          }
+        }
+
+        newW = parseFloat(newW.toFixed(3));
+        newH = parseFloat(newH.toFixed(3));
+
+        setFramePreset('custom');
+        setFrame((current) => ({
+          ...current,
+          width: newW,
+          height: newH,
+        }));
+      }
       return;
     }
 
-    const dx = point.x - interactionRef.current.lastPoint.x;
-    const dy = point.y - interactionRef.current.lastPoint.y;
-    interactionRef.current.lastPoint = point;
-    const localDelta = toLocalDelta(dx, dy, photoRef.current.rotation);
-
-    updatePhotoLive((currentPhoto) => ({
-      ...currentPhoto,
-      offsetX: (currentPhoto.offsetX ?? 0) + localDelta.x,
-      offsetY: (currentPhoto.offsetY ?? 0) + localDelta.y,
-    }));
+    if (canvas && placement && !placement.error) {
+      const { frameX, frameY, frameWidthPx, frameHeightPx, paperWidthPx, paperHeightPx } = placement;
+      const hoverHandle = getHandleAtPoint(point, frameX, frameY, frameWidthPx, frameHeightPx, paperWidthPx, paperHeightPx);
+      if (hoverHandle) {
+        canvas.style.cursor = hoverHandle.cursor;
+      } else if (hitFrame(point)) {
+        canvas.style.cursor = 'grab';
+      } else {
+        canvas.style.cursor = 'default';
+      }
+    }
   };
 
   const finishInteraction = () => {
@@ -645,7 +823,8 @@ const CustomPhotoFrame = () => {
   };
 
   const handleTouchStart = (event) => {
-    if (!photoRef.current) {
+    const placement = framePlacementRef.current;
+    if (!placement || placement.error) {
       return;
     }
 
@@ -653,19 +832,33 @@ const CustomPhotoFrame = () => {
 
     if (event.touches.length === 1) {
       const point = getCanvasPointFromClient(event.touches[0].clientX, event.touches[0].clientY);
-      if (!hitFrame(point)) {
-        interactionRef.current = null;
+      if (!point) return;
+
+      const { frameX, frameY, frameWidthPx, frameHeightPx, paperWidthPx, paperHeightPx } = placement;
+      const handle = getHandleAtPoint(point, frameX, frameY, frameWidthPx, frameHeightPx, paperWidthPx, paperHeightPx);
+      if (handle) {
+        interactionRef.current = {
+          mode: 'resize',
+          handle: handle.name,
+          startFrameWidth: frame.width,
+          startFrameHeight: frame.height,
+          startPoint: point,
+        };
         return;
       }
 
-      interactionRef.current = {
-        mode: 'pan',
-        lastPoint: point,
-      };
+      if (photoRef.current && hitFrame(point)) {
+        interactionRef.current = {
+          mode: 'pan',
+          lastPoint: point,
+        };
+      } else {
+        interactionRef.current = null;
+      }
       return;
     }
 
-    if (event.touches.length >= 2) {
+    if (event.touches.length >= 2 && photoRef.current) {
       const pointA = getCanvasPointFromClient(event.touches[0].clientX, event.touches[0].clientY);
       const pointB = getCanvasPointFromClient(event.touches[1].clientX, event.touches[1].clientY);
       if (!pointA || !pointB) {
@@ -690,32 +883,120 @@ const CustomPhotoFrame = () => {
   };
 
   const handleTouchMove = (event) => {
-    if (!interactionRef.current || !photoRef.current) {
+    if (!interactionRef.current) {
       return;
     }
 
     event.preventDefault();
+    const placement = framePlacementRef.current;
 
-    if (event.touches.length === 1 && interactionRef.current.mode === 'pan') {
+    if (event.touches.length === 1) {
       const point = getCanvasPointFromClient(event.touches[0].clientX, event.touches[0].clientY);
       if (!point) {
         return;
       }
 
-      const dx = point.x - interactionRef.current.lastPoint.x;
-      const dy = point.y - interactionRef.current.lastPoint.y;
-      interactionRef.current.lastPoint = point;
-      const localDelta = toLocalDelta(dx, dy, photoRef.current.rotation);
+      if (interactionRef.current.mode === 'pan' && photoRef.current) {
+        const dx = point.x - interactionRef.current.lastPoint.x;
+        const dy = point.y - interactionRef.current.lastPoint.y;
+        interactionRef.current.lastPoint = point;
+        const localDelta = toLocalDelta(dx, dy, photoRef.current.rotation);
 
-      updatePhotoLive((currentPhoto) => ({
-        ...currentPhoto,
-        offsetX: (currentPhoto.offsetX ?? 0) + localDelta.x,
-        offsetY: (currentPhoto.offsetY ?? 0) + localDelta.y,
-      }));
+        updatePhotoLive((currentPhoto) => ({
+          ...currentPhoto,
+          offsetX: (currentPhoto.offsetX ?? 0) + localDelta.x,
+          offsetY: (currentPhoto.offsetY ?? 0) + localDelta.y,
+        }));
+      } else if (interactionRef.current.mode === 'resize' && placement && !placement.error) {
+        const startW = interactionRef.current.startFrameWidth;
+        const startH = interactionRef.current.startFrameHeight;
+        const dxPx = point.x - interactionRef.current.startPoint.x;
+        const dyPx = point.y - interactionRef.current.startPoint.y;
+
+        const dx = convertFromPixels(dxPx, frame.unit, DPI);
+        const dy = convertFromPixels(dyPx, frame.unit, DPI);
+
+        const paperWidthPx = convertToPixels(paper.width, paper.unit, DPI);
+        const paperHeightPx = convertToPixels(paper.height, paper.unit, DPI);
+        const safeMarginPx = convertToPixels(SAFE_MARGIN_MM, 'mm', DPI);
+        const maxAvailableWidthPx = Math.max(1, paperWidthPx - safeMarginPx * 2);
+        const maxAvailableHeightPx = Math.max(1, paperHeightPx - safeMarginPx * 2);
+
+        const maxW = convertFromPixels(maxAvailableWidthPx, frame.unit, DPI);
+        const maxH = convertFromPixels(maxAvailableHeightPx, frame.unit, DPI);
+        const minSize = frame.unit === 'in' ? 0.5 : 10;
+
+        const handleName = interactionRef.current.handle;
+        let newW = startW;
+        let newH = startH;
+
+        if (['tl', 'tr', 'bl', 'br'].includes(handleName)) {
+          let scaleFactor = 1;
+          if (handleName === 'br') {
+            if (Math.abs(dx / startW) > Math.abs(dy / startH)) {
+              scaleFactor = (startW + dx) / startW;
+            } else {
+              scaleFactor = (startH + dy) / startH;
+            }
+          } else if (handleName === 'tl') {
+            if (Math.abs(dx / startW) > Math.abs(dy / startH)) {
+              scaleFactor = (startW - dx) / startW;
+            } else {
+              scaleFactor = (startH - dy) / startH;
+            }
+          } else if (handleName === 'tr') {
+            if (Math.abs(dx / startW) > Math.abs(dy / startH)) {
+              scaleFactor = (startW + dx) / startW;
+            } else {
+              scaleFactor = (startH - dy) / startH;
+            }
+          } else if (handleName === 'bl') {
+            if (Math.abs(dx / startW) > Math.abs(dy / startH)) {
+              scaleFactor = (startW - dx) / startW;
+            } else {
+              scaleFactor = (startH + dy) / startH;
+            }
+          }
+
+          newW = startW * scaleFactor;
+          newH = startH * scaleFactor;
+
+          if (newW < minSize || newH < minSize) {
+            const minScale = Math.max(minSize / startW, minSize / startH);
+            newW = startW * minScale;
+            newH = startH * minScale;
+          }
+          if (newW > maxW || newH > maxH) {
+            const maxScale = Math.min(maxW / startW, maxH / startH);
+            newW = startW * maxScale;
+            newH = startH * maxScale;
+          }
+        } else {
+          if (handleName === 'l') {
+            newW = clamp(startW - dx, minSize, maxW);
+          } else if (handleName === 'r') {
+            newW = clamp(startW + dx, minSize, maxW);
+          } else if (handleName === 't') {
+            newH = clamp(startH - dy, minSize, maxH);
+          } else if (handleName === 'b') {
+            newH = clamp(startH + dy, minSize, maxH);
+          }
+        }
+
+        newW = parseFloat(newW.toFixed(3));
+        newH = parseFloat(newH.toFixed(3));
+
+        setFramePreset('custom');
+        setFrame((current) => ({
+          ...current,
+          width: newW,
+          height: newH,
+        }));
+      }
       return;
     }
 
-    if (event.touches.length >= 2 && interactionRef.current.mode === 'pinch') {
+    if (event.touches.length >= 2 && interactionRef.current.mode === 'pinch' && photoRef.current) {
       const pointA = getCanvasPointFromClient(event.touches[0].clientX, event.touches[0].clientY);
       const pointB = getCanvasPointFromClient(event.touches[1].clientX, event.touches[1].clientY);
       if (!pointA || !pointB) {
@@ -834,6 +1115,64 @@ const CustomPhotoFrame = () => {
     }
   };
 
+  const getCurrentScale = useCallback(() => {
+    const paperWidthPx = convertToPixels(paper.width, paper.unit, DPI);
+    const paperHeightPx = convertToPixels(paper.height, paper.unit, DPI);
+    const frameWidthPx = convertToPixels(frame.width, frame.unit, DPI);
+    const frameHeightPx = convertToPixels(frame.height, frame.unit, DPI);
+    const safeMarginPx = convertToPixels(SAFE_MARGIN_MM, 'mm', DPI);
+
+    const maxAvailableWidthPx = Math.max(1, paperWidthPx - safeMarginPx * 2);
+    const maxAvailableHeightPx = Math.max(1, paperHeightPx - safeMarginPx * 2);
+
+    const r = frameWidthPx / frameHeightPx;
+    let maxWidthPx, maxHeightPx;
+    if (maxAvailableWidthPx / maxAvailableHeightPx > r) {
+      maxWidthPx = maxAvailableHeightPx * r;
+      maxHeightPx = maxAvailableHeightPx;
+    } else {
+      maxWidthPx = maxAvailableWidthPx;
+      maxHeightPx = maxAvailableWidthPx / r;
+    }
+
+    const scale = clamp((frameWidthPx / maxWidthPx) * 100, 10, 100);
+    return scale;
+  }, [paper, frame]);
+
+  const handleSliderChange = (newScalePercent) => {
+    const paperWidthPx = convertToPixels(paper.width, paper.unit, DPI);
+    const paperHeightPx = convertToPixels(paper.height, paper.unit, DPI);
+    const frameWidthPx = convertToPixels(frame.width, frame.unit, DPI);
+    const frameHeightPx = convertToPixels(frame.height, frame.unit, DPI);
+    const safeMarginPx = convertToPixels(SAFE_MARGIN_MM, 'mm', DPI);
+
+    const maxAvailableWidthPx = Math.max(1, paperWidthPx - safeMarginPx * 2);
+    const maxAvailableHeightPx = Math.max(1, paperHeightPx - safeMarginPx * 2);
+
+    const r = frameWidthPx / frameHeightPx;
+    let maxWidthPx, maxHeightPx;
+    if (maxAvailableWidthPx / maxAvailableHeightPx > r) {
+      maxWidthPx = maxAvailableHeightPx * r;
+      maxHeightPx = maxAvailableHeightPx;
+    } else {
+      maxWidthPx = maxAvailableWidthPx;
+      maxHeightPx = maxAvailableWidthPx / r;
+    }
+
+    const targetWidthPx = maxWidthPx * (newScalePercent / 100);
+    const targetHeightPx = maxHeightPx * (newScalePercent / 100);
+
+    const newWidth = parseFloat(convertFromPixels(targetWidthPx, frame.unit, DPI).toFixed(3));
+    const newHeight = parseFloat(convertFromPixels(targetHeightPx, frame.unit, DPI).toFixed(3));
+
+    setFramePreset('custom');
+    setFrame({
+      ...frame,
+      width: newWidth,
+      height: newHeight,
+    });
+  };
+
   const placement = getFramePlacement(paper, frame);
 
   return (
@@ -942,6 +1281,20 @@ const CustomPhotoFrame = () => {
                 </Form.Select>
               </Col>
             </Row>
+
+            <Form.Group className="mb-3">
+              <div className="d-flex justify-content-between align-items-center mb-1">
+                <Form.Label className="mb-0">Frame Scale (relative to paper)</Form.Label>
+                <span className="fw-semibold text-primary">{Math.round(getCurrentScale())}%</span>
+              </div>
+              <Form.Range
+                min={10}
+                max={100}
+                step={1}
+                value={Math.round(getCurrentScale())}
+                onChange={(event) => handleSliderChange(Number(event.target.value))}
+              />
+            </Form.Group>
 
             <Form.Group className="mb-3">
               <Form.Check

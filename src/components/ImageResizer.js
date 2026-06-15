@@ -4,6 +4,7 @@ import { jsPDF } from 'jspdf';
 import FormatDownloadDropdown from './FormatDownloadDropdown';
 import { saveBlob } from '../utils/fileDownload';
 import { loadPdfJs } from '../utils/pdfjs';
+import { changeDpiBlob } from 'changedpi';
 
 const revokeObjectUrl = (value) => {
   if (typeof value === 'string' && value.startsWith('blob:')) {
@@ -21,6 +22,7 @@ const ImageResizer = () => {
   const [maintainAspectRatio, setMaintainAspectRatio] = useState(true);
   const [targetFileSize, setTargetFileSize] = useState('');
   const [targetFileSizeUnit, setTargetFileSizeUnit] = useState('MB');
+  const [selectedDpi, setSelectedDpi] = useState('');
   
   const [currentProcessedImage, setCurrentProcessedImage] = useState(null);
   const [finalProcessedImage, setFinalProcessedImage] = useState(null);
@@ -463,18 +465,28 @@ const ImageResizer = () => {
     }
     try {
       const imageFormat = format === 'JPG' ? 'image/jpeg' : 'image/png';
-      if (downloadableBlob.type === imageFormat || (format === 'PNG' && downloadableBlob.type === 'image/png') || (format === 'JPG' && downloadableBlob.type === 'image/jpeg')) {
-        await saveBlob(downloadableBlob, `resized_image.${format.toLowerCase()}`, imageFormat);
-      } else {
+      let finalBlob = downloadableBlob;
+      
+      if (downloadableBlob.type !== imageFormat || (format === 'PNG' && downloadableBlob.type !== 'image/png') || (format === 'JPG' && downloadableBlob.type !== 'image/jpeg')) {
         const canvas = previewCanvasRef.current;
         if (!canvas) return;
-        const blob = await new Promise((resolve) => canvas.toBlob(resolve, imageFormat, 1.0));
-        if (!blob) {
-          alert("Failed to generate image for download.");
-          return;
-        }
-        await saveBlob(blob, `resized_image.${format.toLowerCase()}`, imageFormat);
+        finalBlob = await new Promise((resolve) => canvas.toBlob(resolve, imageFormat, 1.0));
       }
+      
+      if (!finalBlob) {
+        alert("Failed to generate image for download.");
+        return;
+      }
+      
+      if (selectedDpi) {
+        try {
+          finalBlob = await changeDpiBlob(finalBlob, Number(selectedDpi));
+        } catch (dpiError) {
+          console.error("Failed to change DPI metadata:", dpiError);
+        }
+      }
+      
+      await saveBlob(finalBlob, `resized_image.${format.toLowerCase()}`, imageFormat);
     } catch (error) {
       alert(`Download failed: ${error.message}`);
     }
@@ -560,6 +572,24 @@ const ImageResizer = () => {
                     </Alert>
                   )}
                 </div>
+
+                <hr />
+
+                <Form.Group className="mb-3">
+                  <Form.Label>Select DPI</Form.Label>
+                  <Form.Select
+                    value={selectedDpi}
+                    onChange={(e) => setSelectedDpi(e.target.value)}
+                  >
+                    <option value="">Default (Keep original)</option>
+                    <option value="100">100 DPI</option>
+                    <option value="200">200 DPI</option>
+                    <option value="300">300 DPI</option>
+                    <option value="400">400 DPI</option>
+                    <option value="500">500 DPI</option>
+                    <option value="600">600 DPI</option>
+                  </Form.Select>
+                </Form.Group>
               </>
             )}
 

@@ -43,6 +43,11 @@ const ImageResizer = () => {
   const [compressedPdfSizeKB, setCompressedPdfSizeKB] = useState(null);
   const [showPdfConfirmation, setShowPdfConfirmation] = useState(false);
 
+  const [uploadedCleanPdfFile, setUploadedCleanPdfFile] = useState(null);
+  const [originalCleanPdfSizeKB, setOriginalCleanPdfSizeKB] = useState(null);
+  const [processingClean, setProcessingClean] = useState(false);
+  const [showCleanConfirmation, setShowCleanConfirmation] = useState(false);
+
   const previewCanvasRef = useRef(null);
   const imageRef = useRef(null);
   const dimensionSectionRef = useRef(null);
@@ -55,6 +60,13 @@ const ImageResizer = () => {
       return () => clearTimeout(timer);
     }
   }, [showPdfConfirmation]);
+
+  useEffect(() => {
+    if (showCleanConfirmation) {
+      const timer = setTimeout(() => setShowCleanConfirmation(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showCleanConfirmation]);
 
   // Effect to load image and set original dimensions
   useEffect(() => {
@@ -348,6 +360,68 @@ const ImageResizer = () => {
       alert(`PDF compression failed: ${error.message}`);
     } finally {
       setProcessingPdfCompression(false);
+    }
+  };
+
+  const handleCleanPdfUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      alert('Please upload a valid PDF file.');
+      return;
+    }
+
+    setUploadedCleanPdfFile(file);
+    setOriginalCleanPdfSizeKB(file.size / 1024);
+    setShowCleanConfirmation(false);
+  };
+
+  const handleCleanPdf = async () => {
+    if (!uploadedCleanPdfFile) {
+      alert('Please upload a PDF first.');
+      return;
+    }
+
+    setProcessingClean(true);
+    try {
+      const pdfjsLib = await loadPdfJs();
+      if (!pdfjsLib) {
+        throw new Error('PDF engine unavailable.');
+      }
+      const fileBytes = await uploadedCleanPdfFile.arrayBuffer();
+      const loadingTask = pdfjsLib.getDocument({ data: fileBytes });
+      const pdfDocument = await loadingTask.promise;
+
+      const targetBytes = uploadedCleanPdfFile.size;
+      const tries = [
+        { quality: 0.95, scale: 3.5 },
+        { quality: 0.93, scale: 3.0 },
+        { quality: 0.90, scale: 2.5 },
+      ];
+
+      let bestBlob = null;
+      let closestDiff = Infinity;
+
+      for (const attempt of tries) {
+        const blob = await buildCompressedPdfBlob(pdfDocument, attempt.quality, attempt.scale);
+        const diff = Math.abs(blob.size - targetBytes);
+        if (diff < closestDiff) {
+          closestDiff = diff;
+          bestBlob = blob;
+        }
+      }
+
+      if (!bestBlob) {
+        throw new Error('Unable to clean this PDF.');
+      }
+
+      setShowCleanConfirmation(true);
+      await saveBlob(bestBlob, uploadedCleanPdfFile.name, 'application/pdf');
+    } catch (error) {
+      alert(`PDF cleaning failed: ${error.message}`);
+    } finally {
+      setProcessingClean(false);
     }
   };
 
@@ -670,6 +744,36 @@ const ImageResizer = () => {
                     <p className="mt-2 mb-0 text-muted">
                       Compressed PDF Size: {formatKB(compressedPdfSizeKB)}
                     </p>
+                  )}
+                </>
+              )}
+            </div>
+
+            <hr />
+
+            <div>
+              <h6 className="mb-3">PDF Clean (Security / Header Remover)</h6>
+              <Form.Group className="mb-3">
+                <Form.Label>Upload PDF</Form.Label>
+                <Form.Control type="file" accept="application/pdf,.pdf" onChange={handleCleanPdfUpload} />
+              </Form.Group>
+
+              {uploadedCleanPdfFile && (
+                <>
+                  <p className="mb-2">
+                    Original PDF Size: <strong>{formatKB(originalCleanPdfSizeKB)}</strong>
+                  </p>
+
+                  <div className="d-grid gap-2 mt-3">
+                    <Button variant="primary" onClick={handleCleanPdf} disabled={processingClean}>
+                      {processingClean ? <Spinner animation="border" size="sm" /> : 'Clean PDF'}
+                    </Button>
+                  </div>
+
+                  {showCleanConfirmation && (
+                    <Alert variant="success" className="mt-3">
+                      PDF cleaned and downloaded successfully.
+                    </Alert>
                   )}
                 </>
               )}

@@ -3,6 +3,15 @@ import { Row, Col, Button, Form, Spinner, Card, Alert, Collapse } from 'react-bo
 import * as pdfjsLib from 'pdfjs-dist';
 import { resumeTemplates } from '../utils/resumeTemplates';
 import { saveBlob } from '../utils/fileDownload';
+import {
+  SECTION_OPTIONS,
+  cloneResumeModel,
+  createDefaultResumeModel,
+  createSection,
+  generateLatexFromResumeModel,
+  normalizeSections,
+  parseLatexToResumeModel,
+} from '../utils/visualResume';
 
 // Set up PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
@@ -15,6 +24,10 @@ const COMPILER_URL = CAN_FETCH_COMPILER ? '/cgi-bin/latexcgi' : TEXLIVE_COMPILER
 const RESUME_PDF_FILENAME = 'resume.pdf';
 const RESUME_PDF_MIME_TYPE = 'application/pdf';
 const REMOTE_PREVIEW_FRAME_NAME = 'resume-texlive-preview';
+const DEFAULT_OWN_CLOUD_COMPILER_URL = 'https://140-238-93-179.sslip.io/compile';
+const OWN_CLOUD_COMPILER_URL =
+  process.env.REACT_APP_OWN_CLOUD_COMPILER_URL || DEFAULT_OWN_CLOUD_COMPILER_URL;
+const OWN_CLOUD_COMPILER_STORAGE_KEY = 'ownCloudCompilerUrl';
 
 const saveResumePdfWithPicker = async (blob) => {
   if (
@@ -41,8 +54,11 @@ const saveResumePdfWithPicker = async (blob) => {
 };
 
 function ResumeBuilder() {
+  const initialResumeModel = parseLatexToResumeModel(resumeTemplates.jake.code) || createDefaultResumeModel();
   const [selectedTemplateKey, setSelectedTemplateKey] = useState('jake');
   const [latexCode, setLatexCode] = useState(resumeTemplates.jake.code);
+  const [resumeModel, setResumeModel] = useState(initialResumeModel);
+  const [builderMode, setBuilderMode] = useState('visual');
   const [engine, setEngine] = useState('pdflatex');
   const [isCompiling, setIsCompiling] = useState(false);
   const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
@@ -77,12 +93,32 @@ function ResumeBuilder() {
     const key = e.target.value;
     setSelectedTemplateKey(key);
     if (resumeTemplates[key]) {
-      setLatexCode(resumeTemplates[key].code);
+      const nextLatex = resumeTemplates[key].code;
+      setLatexCode(nextLatex);
+      const parsedModel = parseLatexToResumeModel(nextLatex);
+      if (parsedModel) {
+        setResumeModel(parsedModel);
+      }
     }
   };
 
   const handleEditorChange = (e) => {
-    setLatexCode(e.target.value);
+    const nextLatex = e.target.value;
+    setLatexCode(nextLatex);
+    setSelectedTemplateKey('custom');
+    const parsedModel = parseLatexToResumeModel(nextLatex);
+    if (parsedModel) {
+      setResumeModel(parsedModel);
+    }
+  };
+
+  const handleVisualModelChange = (nextModel) => {
+    const normalizedModel = {
+      ...nextModel,
+      sections: normalizeSections(nextModel.sections),
+    };
+    setResumeModel(normalizedModel);
+    setLatexCode(generateLatexFromResumeModel(normalizedModel));
     setSelectedTemplateKey('custom');
   };
 
@@ -223,6 +259,96 @@ function ResumeBuilder() {
     }
   };
 
+  const getOwnCloudCompilerUrl = () => {
+    if (typeof window === 'undefined') return OWN_CLOUD_COMPILER_URL;
+    return localStorage.getItem(OWN_CLOUD_COMPILER_STORAGE_KEY) || OWN_CLOUD_COMPILER_URL;
+  };
+
+  const handleOwnCloudCompile = async () => {
+    if (isCompiling) return;
+
+    const ownCloudCompilerUrl = getOwnCloudCompilerUrl();
+    if (!ownCloudCompilerUrl) {
+      setCompilerError({
+        summary: 'Own cloud compiler URL is not configured.',
+        logs: `Set REACT_APP_OWN_CLOUD_COMPILER_URL before building, or set localStorage.${OWN_CLOUD_COMPILER_STORAGE_KEY} for testing.`,
+      });
+      setShowLogs(true);
+      return;
+    }
+
+    setIsCompiling(true);
+    setCompilerError(null);
+    setUsesRemotePreview(false);
+
+    try {
+      const formData = new FormData();
+      formData.append('filecontents[]', latexCode);
+      formData.append('filename[]', 'document.tex');
+      formData.append('engine', engine);
+      formData.append('return', 'pdf');
+
+      const response = await fetch(ownCloudCompilerUrl, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server returned HTTP ${response.status}`);
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.toLowerCase().includes('pdf')) {
+        const rawBlob = await response.blob();
+        const pdfFile = new File([rawBlob], RESUME_PDF_FILENAME, { type: RESUME_PDF_MIME_TYPE });
+
+        if (activeBlobUrlRef.current) {
+          URL.revokeObjectURL(activeBlobUrlRef.current);
+        }
+
+        const newUrl = URL.createObjectURL(pdfFile);
+        activeBlobUrlRef.current = newUrl;
+        setPdfBlobUrl(newUrl);
+        setPdfBlob(pdfFile);
+
+        try {
+          const loadingTask = pdfjsLib.getDocument(newUrl);
+          const pdf = await loadingTask.promise;
+          setPdfDoc(pdf);
+          setNumPages(pdf.numPages);
+          setCompilerError(null);
+          setShowLogs(false);
+        } catch (pdfError) {
+          console.error("PDFJS loading error:", pdfError);
+          setCompilerError({
+            summary: "Failed to render PDF preview: " + pdfError.message,
+            logs: pdfError.stack || pdfError.toString()
+          });
+          setPdfDoc(null);
+          setNumPages(0);
+        }
+      } else {
+        const logText = await response.text();
+        const errorSummary = parseLatexErrors(logText);
+        setCompilerError({
+          summary: errorSummary || "Own cloud LaTeX compilation failed. Check logs below.",
+          logs: logText
+        });
+        clearPdfState();
+        setShowLogs(true);
+      }
+    } catch (err) {
+      setCompilerError({
+        summary: `Own cloud compiler failed: ${err.message}`,
+        logs: err.toString()
+      });
+      clearPdfState();
+      setShowLogs(true);
+    } finally {
+      setIsCompiling(false);
+    }
+  };
+
   // Helper to extract a friendly summary from LaTeX logs
   const parseLatexErrors = (logs) => {
     const lines = logs.split('\n');
@@ -294,15 +420,15 @@ function ResumeBuilder() {
         <input type="hidden" name="engine" value={engine} />
         <input type="hidden" name="return" value="pdf" />
       </form>
-      <Row className="mb-3">
-        <Col md={6} className="d-flex align-items-center gap-3">
-          <Form.Group className="d-flex align-items-center gap-2 mb-0">
+      <Row className="mb-3 resume-controls-row">
+        <Col md={6} className="resume-template-col">
+          <Form.Group className="resume-control-group mb-0">
             <Form.Label className="mb-0 text-nowrap font-weight-bold">Template:</Form.Label>
             <Form.Select 
               value={selectedTemplateKey} 
               onChange={handleTemplateChange}
               size="sm"
-              style={{ minWidth: '220px' }}
+              className="resume-template-select"
             >
               {Object.entries(resumeTemplates).map(([key, template]) => (
                 <option key={key} value={key}>{template.name}</option>
@@ -313,14 +439,14 @@ function ResumeBuilder() {
             </Form.Select>
           </Form.Group>
         </Col>
-        <Col md={6} className="d-flex justify-content-md-end align-items-center gap-2 mt-2 mt-md-0">
-          <Form.Group className="d-flex align-items-center gap-2 mb-0">
+        <Col md={6} className="resume-actions-col mt-2 mt-md-0">
+          <Form.Group className="resume-control-group resume-engine-group mb-0">
             <Form.Label className="mb-0 text-nowrap font-weight-bold">Engine:</Form.Label>
             <Form.Select 
               value={engine} 
               onChange={(e) => setEngine(e.target.value)}
               size="sm"
-              style={{ width: '110px' }}
+              className="resume-engine-select"
             >
               <option value="pdflatex">pdflatex</option>
               <option value="xelatex">xelatex</option>
@@ -331,7 +457,7 @@ function ResumeBuilder() {
             size="sm" 
             onClick={handleCompile} 
             disabled={isCompiling}
-            className="d-flex align-items-center gap-1 font-weight-bold"
+            className="resume-action-button d-flex align-items-center justify-content-center gap-1 font-weight-bold"
           >
             {isCompiling ? (
               <>
@@ -344,12 +470,21 @@ function ResumeBuilder() {
               </>
             )}
           </Button>
+          <Button
+            variant="outline-info"
+            size="sm"
+            onClick={handleOwnCloudCompile}
+            disabled={isCompiling}
+            className="resume-action-button d-flex align-items-center justify-content-center gap-1 font-weight-bold"
+          >
+            ☁️ Compile on Own Cloud
+          </Button>
           <Button 
             variant="primary" 
             size="sm" 
             onClick={handleDownload} 
             disabled={(!pdfBlobUrl && !usesRemotePreview) || isCompiling}
-            className="d-flex align-items-center gap-1 font-weight-bold"
+            className="resume-action-button d-flex align-items-center justify-content-center gap-1 font-weight-bold"
           >
             📥 Download PDF
           </Button>
@@ -357,22 +492,46 @@ function ResumeBuilder() {
       </Row>
 
       <Row>
-        {/* Left Column: LaTeX Code Editor */}
+        {/* Left Column: Visual Builder / LaTeX Code Editor */}
         <Col lg={6} className="mb-4 mb-lg-0">
           <Card className="shadow-sm border-secondary-subtle h-100">
-            <Card.Header className="bg-light py-2 px-3 d-flex justify-content-between align-items-center">
-              <span className="font-weight-bold text-secondary">LaTeX Code Editor</span>
-              <small className="text-muted">Press Ctrl+Enter / ⌘+Enter to compile</small>
+            <Card.Header className="resume-card-header bg-light py-2 px-3 d-flex justify-content-between align-items-center">
+              <span className="font-weight-bold text-secondary">
+                {builderMode === 'visual' ? 'Visual Resume Builder' : 'LaTeX Code Editor'}
+              </span>
+              <div className="resume-mode-toggle" role="group" aria-label="Resume builder mode">
+                <Button
+                  variant={builderMode === 'visual' ? 'primary' : 'outline-secondary'}
+                  size="sm"
+                  onClick={() => setBuilderMode('visual')}
+                >
+                  Visual
+                </Button>
+                <Button
+                  variant={builderMode === 'latex' ? 'primary' : 'outline-secondary'}
+                  size="sm"
+                  onClick={() => setBuilderMode('latex')}
+                >
+                  LaTeX
+                </Button>
+              </div>
             </Card.Header>
             <Card.Body className="p-0 position-relative d-flex flex-column" style={{ minHeight: '550px' }}>
-              <Form.Control
-                as="textarea"
-                value={latexCode}
-                onChange={handleEditorChange}
-                onKeyDown={handleKeyDown}
-                className="latex-editor-textarea flex-grow-1"
-                placeholder="Write your LaTeX resume code here..."
-              />
+              {builderMode === 'visual' ? (
+                <VisualResumeBuilder
+                  model={resumeModel}
+                  onChange={handleVisualModelChange}
+                />
+              ) : (
+                <Form.Control
+                  as="textarea"
+                  value={latexCode}
+                  onChange={handleEditorChange}
+                  onKeyDown={handleKeyDown}
+                  className="latex-editor-textarea flex-grow-1"
+                  placeholder="Write your LaTeX resume code here..."
+                />
+              )}
             </Card.Body>
           </Card>
         </Col>
@@ -380,7 +539,7 @@ function ResumeBuilder() {
         {/* Right Column: PDF Preview / Logs */}
         <Col lg={6}>
           <Card className="shadow-sm border-secondary-subtle h-100">
-            <Card.Header className="bg-light py-2 px-3 d-flex justify-content-between align-items-center">
+            <Card.Header className="resume-card-header bg-light py-2 px-3 d-flex justify-content-between align-items-center">
               <span className="font-weight-bold text-secondary">ATS PDF Preview</span>
               {pdfDoc && (
                 <div className="d-flex align-items-center gap-2">
@@ -500,6 +659,292 @@ function ResumeBuilder() {
           </small>
         </Card.Body>
       </Card>
+    </div>
+  );
+}
+
+function VisualResumeBuilder({ model, onChange }) {
+  const updateModel = (producer) => {
+    const nextModel = cloneResumeModel(model);
+    producer(nextModel);
+    onChange(nextModel);
+  };
+
+  const updateContact = (field, value) => {
+    updateModel((draft) => {
+      draft.contact[field] = value;
+    });
+  };
+
+  const moveSection = (index, direction) => {
+    updateModel((draft) => {
+      if (draft.sections[index]?.type === 'summary') return;
+      const targetIndex = index + direction;
+      if (targetIndex < 1 || targetIndex >= draft.sections.length) return;
+      const [section] = draft.sections.splice(index, 1);
+      draft.sections.splice(targetIndex, 0, section);
+    });
+  };
+
+  const removeSection = (index) => {
+    updateModel((draft) => {
+      if (draft.sections[index]?.type === 'summary') return;
+      draft.sections.splice(index, 1);
+    });
+  };
+
+  const addSection = (type) => {
+    if (!type) return;
+    updateModel((draft) => {
+      if (type === 'summary' && draft.sections.some((section) => section.type === 'summary')) return;
+      draft.sections.push(createSection(type));
+    });
+  };
+
+  const updateSection = (sectionIndex, producer) => {
+    updateModel((draft) => {
+      producer(draft.sections[sectionIndex]);
+    });
+  };
+
+  const addItem = (sectionIndex) => {
+    updateSection(sectionIndex, (section) => {
+      if (section.type === 'summary') {
+        section.bullets = [...(section.bullets || []), 'Add a concise impact statement.'];
+      } else if (section.type === 'experience') {
+        section.items.push({ role: 'Job Title', company: 'Company', location: 'City, State', dates: 'Jan 2024 -- Present', bullets: ['Describe measurable impact and relevant tools.'] });
+      } else if (section.type === 'projects') {
+        section.items.push({ name: 'Project Name', stack: 'Tech Stack', dates: '2024', bullets: ['Describe the problem, implementation, and result.'] });
+      } else if (section.type === 'education') {
+        section.items.push({ school: 'School Name', location: 'City, State', degree: 'Degree / Certification', dates: '2020 -- 2024' });
+      } else if (section.type === 'skills') {
+        section.groups.push({ label: 'Category', value: 'Skill one, Skill two' });
+      }
+    });
+  };
+
+  return (
+    <div className="visual-resume-builder">
+      <div className="visual-builder-band">
+        <div className="visual-builder-grid">
+          <Form.Group>
+            <Form.Label>Name</Form.Label>
+            <Form.Control size="sm" value={model.contact.name} onChange={(e) => updateContact('name', e.target.value)} />
+          </Form.Group>
+          <Form.Group>
+            <Form.Label>Phone</Form.Label>
+            <Form.Control size="sm" value={model.contact.phone} onChange={(e) => updateContact('phone', e.target.value)} />
+          </Form.Group>
+          <Form.Group>
+            <Form.Label>Email</Form.Label>
+            <Form.Control size="sm" value={model.contact.email} onChange={(e) => updateContact('email', e.target.value)} />
+          </Form.Group>
+          <Form.Group>
+            <Form.Label>Location</Form.Label>
+            <Form.Control size="sm" value={model.contact.location} onChange={(e) => updateContact('location', e.target.value)} />
+          </Form.Group>
+          <Form.Group>
+            <Form.Label>LinkedIn</Form.Label>
+            <Form.Control size="sm" value={model.contact.linkedin} onChange={(e) => updateContact('linkedin', e.target.value)} />
+          </Form.Group>
+          <Form.Group>
+            <Form.Label>GitHub</Form.Label>
+            <Form.Control size="sm" value={model.contact.github} onChange={(e) => updateContact('github', e.target.value)} />
+          </Form.Group>
+        </div>
+      </div>
+
+      <div className="visual-builder-toolbar">
+        <Form.Select size="sm" defaultValue="" onChange={(e) => { addSection(e.target.value); e.target.value = ''; }}>
+          <option value="" disabled>Add section</option>
+          {SECTION_OPTIONS
+            .filter((option) => option.type !== 'summary' || !model.sections.some((section) => section.type === 'summary'))
+            .map((option) => (
+            <option key={option.type} value={option.type}>{option.title}</option>
+          ))}
+        </Form.Select>
+      </div>
+
+      <div className="visual-section-list">
+        {model.sections.map((section, sectionIndex) => (
+          <section className="visual-section-panel" key={section.id}>
+            <div className="visual-section-header">
+              <Form.Control
+                size="sm"
+                value={section.title}
+                onChange={(e) => updateSection(sectionIndex, (draft) => { draft.title = e.target.value; })}
+                className="visual-section-title-input"
+              />
+              <div className="visual-section-actions">
+                <Button size="sm" variant="outline-secondary" onClick={() => moveSection(sectionIndex, -1)} disabled={section.type === 'summary' || sectionIndex <= 1}>Up</Button>
+                <Button size="sm" variant="outline-secondary" onClick={() => moveSection(sectionIndex, 1)} disabled={section.type === 'summary' || sectionIndex === model.sections.length - 1}>Down</Button>
+                <Button size="sm" variant="outline-danger" onClick={() => removeSection(sectionIndex)} disabled={section.type === 'summary'}>Remove</Button>
+              </div>
+            </div>
+
+            {section.type === 'summary' && (
+              <div className="visual-entry-stack">
+                {(section.bullets || ['']).map((bullet, bulletIndex) => (
+                  <div className="visual-bullet-row" key={`${section.id}-summary-${bulletIndex}`}>
+                    <Form.Control
+                      as="textarea"
+                      rows={2}
+                      value={bullet}
+                      onChange={(e) => updateSection(sectionIndex, (draft) => {
+                        draft.bullets = draft.bullets || [];
+                        draft.bullets[bulletIndex] = e.target.value;
+                      })}
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline-danger"
+                      onClick={() => updateSection(sectionIndex, (draft) => { draft.bullets.splice(bulletIndex, 1); })}
+                      disabled={(section.bullets || []).length <= 1}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+                <Button size="sm" variant="outline-primary" onClick={() => addItem(sectionIndex)}>Add summary point</Button>
+              </div>
+            )}
+
+            {section.type === 'experience' && (
+              <VisualEntryList
+                section={section}
+                sectionIndex={sectionIndex}
+                updateSection={updateSection}
+                addItem={addItem}
+                fields={[
+                  ['role', 'Role'],
+                  ['company', 'Company'],
+                  ['location', 'Location'],
+                  ['dates', 'Dates'],
+                ]}
+              />
+            )}
+
+            {section.type === 'projects' && (
+              <VisualEntryList
+                section={section}
+                sectionIndex={sectionIndex}
+                updateSection={updateSection}
+                addItem={addItem}
+                fields={[
+                  ['name', 'Project'],
+                  ['stack', 'Stack'],
+                  ['dates', 'Dates'],
+                ]}
+              />
+            )}
+
+            {section.type === 'education' && (
+              <VisualEntryList
+                section={section}
+                sectionIndex={sectionIndex}
+                updateSection={updateSection}
+                addItem={addItem}
+                fields={[
+                  ['school', 'School'],
+                  ['degree', 'Degree'],
+                  ['location', 'Location'],
+                  ['dates', 'Dates'],
+                ]}
+                hideBullets
+              />
+            )}
+
+            {section.type === 'skills' && (
+              <div className="visual-entry-stack">
+                {(section.groups || []).map((group, groupIndex) => (
+                  <div className="visual-skill-row" key={`${section.id}-skill-${groupIndex}`}>
+                    <Form.Control
+                      size="sm"
+                      value={group.label}
+                      onChange={(e) => updateSection(sectionIndex, (draft) => { draft.groups[groupIndex].label = e.target.value; })}
+                      placeholder="Category"
+                    />
+                    <Form.Control
+                      size="sm"
+                      value={group.value}
+                      onChange={(e) => updateSection(sectionIndex, (draft) => { draft.groups[groupIndex].value = e.target.value; })}
+                      placeholder="Skills"
+                    />
+                    <Button size="sm" variant="outline-danger" onClick={() => updateSection(sectionIndex, (draft) => { draft.groups.splice(groupIndex, 1); })}>
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+                <Button size="sm" variant="outline-primary" onClick={() => addItem(sectionIndex)}>Add skill group</Button>
+              </div>
+            )}
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function VisualEntryList({ section, sectionIndex, updateSection, addItem, fields, hideBullets = false }) {
+  return (
+    <div className="visual-entry-stack">
+      {(section.items || []).map((item, itemIndex) => (
+        <div className="visual-entry-panel" key={`${section.id}-item-${itemIndex}`}>
+          <div className="visual-entry-header">
+            <span>{item.role || item.name || item.school || 'Entry'}</span>
+            <Button
+              size="sm"
+              variant="outline-danger"
+              onClick={() => updateSection(sectionIndex, (draft) => { draft.items.splice(itemIndex, 1); })}
+            >
+              Remove
+            </Button>
+          </div>
+          <div className="visual-builder-grid visual-entry-grid">
+            {fields.map(([field, label]) => (
+              <Form.Group key={field}>
+                <Form.Label>{label}</Form.Label>
+                <Form.Control
+                  size="sm"
+                  value={item[field] || ''}
+                  onChange={(e) => updateSection(sectionIndex, (draft) => { draft.items[itemIndex][field] = e.target.value; })}
+                />
+              </Form.Group>
+            ))}
+          </div>
+          {!hideBullets && (
+            <div className="visual-bullet-list">
+              {(item.bullets || []).map((bullet, bulletIndex) => (
+                <div className="visual-bullet-row" key={`${section.id}-bullet-${itemIndex}-${bulletIndex}`}>
+                  <Form.Control
+                    as="textarea"
+                    rows={2}
+                    value={bullet}
+                    onChange={(e) => updateSection(sectionIndex, (draft) => { draft.items[itemIndex].bullets[bulletIndex] = e.target.value; })}
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline-danger"
+                    onClick={() => updateSection(sectionIndex, (draft) => { draft.items[itemIndex].bullets.splice(bulletIndex, 1); })}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
+              <Button
+                size="sm"
+                variant="outline-primary"
+                onClick={() => updateSection(sectionIndex, (draft) => { draft.items[itemIndex].bullets.push('Describe measurable impact.'); })}
+              >
+                Add bullet
+              </Button>
+            </div>
+          )}
+        </div>
+      ))}
+      <Button size="sm" variant="outline-primary" onClick={() => addItem(sectionIndex)}>
+        Add entry
+      </Button>
     </div>
   );
 }

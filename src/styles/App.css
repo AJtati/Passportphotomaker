@@ -363,6 +363,167 @@ h1, h2, h3 {
   margin-bottom: 3rem;
 }
 
+.resume-template-col {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.resume-actions-col {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.resume-control-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.resume-template-select {
+  min-width: 220px;
+}
+
+.resume-engine-select {
+  width: 110px;
+}
+
+.resume-action-button {
+  min-height: 32px;
+  white-space: nowrap;
+}
+
+.resume-mode-toggle {
+  display: inline-flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.visual-resume-builder {
+  background: var(--app-bg);
+  color: var(--text);
+  height: 100%;
+  min-height: 550px;
+  overflow-y: auto;
+  padding: 0.9rem;
+}
+
+.visual-builder-band {
+  border: 1px solid var(--border-color);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 0.9rem;
+}
+
+.visual-builder-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.visual-resume-builder .form-label {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.visual-resume-builder .form-control,
+.visual-resume-builder .form-select {
+  background-color: var(--surface-subtle);
+  border-color: var(--border-color);
+  color: var(--text);
+}
+
+.visual-resume-builder .form-control:focus,
+.visual-resume-builder .form-select:focus {
+  background-color: var(--surface-subtle);
+  border-color: var(--top-nav-active-text);
+  color: var(--text);
+  box-shadow: 0 0 0 0.12rem rgba(13, 110, 253, 0.15);
+}
+
+.visual-builder-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0.85rem 0;
+}
+
+.visual-builder-toolbar .form-select {
+  max-width: 190px;
+}
+
+.visual-section-list,
+.visual-entry-stack,
+.visual-bullet-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.visual-section-panel {
+  border: 1px solid var(--border-color);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 0.85rem;
+}
+
+.visual-section-header,
+.visual-entry-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.visual-section-title-input {
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.visual-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.visual-entry-panel {
+  border: 1px solid var(--border-color);
+  background: var(--surface-subtle);
+  border-radius: 7px;
+  padding: 0.75rem;
+}
+
+.visual-entry-header {
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.visual-entry-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.visual-bullet-list {
+  margin-top: 0.75rem;
+}
+
+.visual-bullet-row,
+.visual-skill-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: start;
+}
+
+.visual-skill-row {
+  grid-template-columns: minmax(110px, 0.45fr) minmax(0, 1fr) auto;
+}
+
 html[data-theme='dark'] .resume-builder-container .card,
 html[data-theme='dark'] .resume-builder-container .card.bg-light,
 html[data-theme='dark'] .resume-builder-container .card-header.bg-light {
@@ -465,5 +626,165 @@ html[data-theme='dark'] .resume-builder-container a {
     max-width: 1300px;
     margin-left: auto;
     margin-right: auto;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .resume-builder-container {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .resume-controls-row {
+    --bs-gutter-x: 0;
+    gap: 0.75rem;
+  }
+
+  .resume-template-col,
+  .resume-actions-col {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .resume-template-col,
+  .resume-control-group {
+    display: flex;
+    align-items: stretch;
+  }
+
+  .resume-control-group {
+    width: 100%;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .resume-control-group .form-label {
+    align-self: flex-start;
+    font-size: 0.95rem;
+  }
+
+  .resume-template-select,
+  .resume-engine-select {
+    width: 100% !important;
+    min-width: 0;
+  }
+
+  .resume-actions-col {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.6rem;
+  }
+
+  .resume-engine-group {
+    grid-column: 1 / -1;
+  }
+
+  .resume-action-button {
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    padding: 0.45rem 0.5rem;
+    white-space: normal;
+    line-height: 1.15;
+    text-align: center;
+  }
+
+  .resume-actions-col .resume-action-button:first-of-type {
+    grid-column: 1 / -1;
+  }
+
+  .resume-card-header {
+    align-items: flex-start !important;
+    gap: 0.5rem;
+  }
+
+  .resume-card-header small {
+    max-width: 52%;
+    line-height: 1.25;
+    text-align: right;
+  }
+
+  .resume-mode-toggle {
+    width: 100%;
+  }
+
+  .resume-mode-toggle .btn {
+    flex: 1;
+  }
+
+  .visual-resume-builder {
+    min-height: 440px;
+    padding: 0.7rem;
+  }
+
+  .visual-builder-grid,
+  .visual-entry-grid,
+  .visual-bullet-row,
+  .visual-skill-row {
+    grid-template-columns: 1fr;
+  }
+
+  .visual-builder-toolbar {
+    justify-content: stretch;
+  }
+
+  .visual-builder-toolbar .form-select {
+    max-width: none;
+  }
+
+  .visual-section-header,
+  .visual-entry-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .visual-section-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .visual-section-actions .btn,
+  .visual-bullet-row .btn,
+  .visual-skill-row .btn {
+    width: 100%;
+  }
+
+  .latex-editor-textarea {
+    min-height: 440px;
+    font-size: 0.78rem;
+    padding: 0.85rem !important;
+  }
+
+  .resume-builder-container .card-body[style] {
+    min-height: 440px !important;
+  }
+
+  .pdf-canvas-viewport {
+    max-height: 520px !important;
+    padding: 0.75rem !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .resume-actions-col {
+    grid-template-columns: 1fr;
+  }
+
+  .resume-actions-col .resume-action-button:first-of-type {
+    grid-column: auto;
+  }
+
+  .resume-card-header {
+    flex-direction: column;
+  }
+
+  .resume-card-header small {
+    max-width: 100%;
+    text-align: left;
   }
 }

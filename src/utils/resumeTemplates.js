@@ -382,6 +382,13 @@ Hello World!
 % Disable page numbers
 \\pagestyle{empty}
 
+\\newcommand{\\resumeRole}[4]{
+\\noindent\\begin{tabular*}{\\textwidth}[t]{@{}l@{\\extracolsep{\\fill}}r@{}}
+  \\textbf{#1} & #2 \\\\
+  \\textit{#3} & \\textit{#4} \\\\
+\\end{tabular*}\\vspace{-4pt}
+}
+
 \\begin{document}
 
 %--- HEADER ---
@@ -400,8 +407,7 @@ Highly motivated Software Engineer with 3+ years of experience building reliable
 \\section{Experience}
 \\vspace{3pt}
 
-\\textbf{Software Engineer} \\hfill Jan 2021 -- Present \\\\
-\\textit{BigTech Corporation, New York, NY}
+\\resumeRole{Software Engineer}{Jan 2021 -- Present}{BigTech Corporation}{New York, NY}
 \\begin{itemize}[noitemsep,topsep=2pt,parsep=2pt,partopsep=2pt,leftmargin=0.2in]
   \\item Design and maintain core REST APIs serving over 10,000 daily active users using Python, Django, and PostgreSQL.
   \\item Reduced database query response times by 35\\% by implementing Redis caching and indexing large tables.
@@ -410,8 +416,7 @@ Highly motivated Software Engineer with 3+ years of experience building reliable
 
 \\vspace{4pt}
 
-\\textbf{Junior Software Developer} \\hfill Jun 2019 -- Dec 2020 \\\\
-\\textit{SmallTech Inc, Austin, TX}
+\\resumeRole{Junior Software Developer}{Jun 2019 -- Dec 2020}{SmallTech Inc}{Austin, TX}
 \\begin{itemize}[noitemsep,topsep=2pt,parsep=2pt,partopsep=2pt,leftmargin=0.2in]
   \\item Developed and tested frontend features using React, Bootstrap, and Redux.
   \\item Configured CI/CD pipelines using GitHub Actions, reducing deployment errors by 20\\%.

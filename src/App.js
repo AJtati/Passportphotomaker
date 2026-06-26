@@ -8,6 +8,7 @@ import ImageResizer from './components/ImageResizer';
 import CollagePrint from './components/CollagePrint';
 import CustomPhotoFrame from './components/CustomPhotoFrame';
 import FormatDownloadDropdown from './components/FormatDownloadDropdown';
+import ResumeBuilder from './components/ResumeBuilder';
 import Logo from './components/Logo';
 import { saveCanvasDocument } from './utils/canvasExport';
 import './styles/App.css';
@@ -31,6 +32,7 @@ const TAB_ROUTES = {
   resize: '/resize',
   collage: '/collage',
   frame: '/frame',
+  resume: '/resume',
 };
 
 const ROUTE_TO_TAB = Object.fromEntries(
@@ -140,6 +142,9 @@ function App() {
               <Nav.Item>
                 <Nav.Link eventKey="frame">Custom Photo Frame</Nav.Link>
               </Nav.Item>
+              <Nav.Item>
+                <Nav.Link eventKey="resume">Build Resume</Nav.Link>
+              </Nav.Item>
             </Nav>
             <DropdownButton
               id="theme-dropdown"
@@ -163,6 +168,7 @@ function App() {
         {activeTab === 'resize' && <ImageResizer />}
         {activeTab === 'collage' && <CollagePrint />}
         {activeTab === 'frame' && <CustomPhotoFrame />}
+        {activeTab === 'resume' && <ResumeBuilder />}
       </Container>
     </>
   );

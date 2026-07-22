@@ -23,6 +23,7 @@ export const saveCanvasDocument = async (
   {
     filename,
     quality = 1,
+    dpi,
     pdfOptions,
   } = {}
 ) => {
@@ -35,5 +36,5 @@ export const saveCanvasDocument = async (
     return;
   }
 
-  await saveCanvasImage(canvas, format, filename, quality);
+  await saveCanvasImage(canvas, format, filename, quality, dpi);
 };

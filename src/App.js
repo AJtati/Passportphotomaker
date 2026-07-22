@@ -14,7 +14,8 @@ import { saveCanvasDocument } from './utils/canvasExport';
 import './styles/App.css';
 
 // --- Constants ---
-const DPI = 300;
+const EDITOR_DPI = 300;
+const GRID_DPI_OPTIONS = [100, 200, 300, 400, 500, 600];
 const PRESET_PASSPORT_SIZES = {
   'india': { width: 35, height: 45, unit: 'mm', name: 'India' },
   'us': { width: 2, height: 2, unit: 'in', name: 'US' },
@@ -187,7 +188,10 @@ function PassportPhotoCreator() {
   const [passportPreset, setPassportPreset] = useState('india');
   const [paperPreset, setPaperPreset] = useState('a4');
   const [addBorder, setAddBorder] = useState(false);
+  const [addDottedBorder, setAddDottedBorder] = useState(false);
   const [addCuttingGuide, setAddCuttingGuide] = useState(false);
+  const [cuttingGuideOffsetMm, setCuttingGuideOffsetMm] = useState(2);
+  const [gridDpi, setGridDpi] = useState(600);
   const [photoOrientation, setPhotoOrientation] = useState('portrait');
   const [photoSpacing, setPhotoSpacing] = useState(2);
   const [layoutSummary, setLayoutSummary] = useState({ cols: 0, rows: 0, total: 0 });
@@ -220,7 +224,9 @@ function PassportPhotoCreator() {
     }
     if (newSettings.paper) setPaper(newSettings.paper);
     if (newSettings.addBorder !== undefined) setAddBorder(newSettings.addBorder);
+    if (newSettings.addDottedBorder !== undefined) setAddDottedBorder(newSettings.addDottedBorder);
     if (newSettings.addCuttingGuide !== undefined) setAddCuttingGuide(newSettings.addCuttingGuide);
+    if (newSettings.cuttingGuideOffsetMm !== undefined) setCuttingGuideOffsetMm(newSettings.cuttingGuideOffsetMm);
     if (newSettings.passportPreset) {
       if (newSettings.passportPreset !== passportPreset) shouldResetCrop = true;
       setPassportPreset(newSettings.passportPreset);
@@ -249,6 +255,7 @@ function PassportPhotoCreator() {
       await saveCanvasDocument(canvas, format, {
         filename: `passport_photos.${format.toLowerCase()}`,
         quality: 1.0,
+        dpi: gridDpi,
         pdfOptions: {
           filename: 'passport_photos.pdf',
           unit: paper.unit,
@@ -269,12 +276,13 @@ function PassportPhotoCreator() {
       <Col md={5} className="d-flex flex-column" style={{gap: '1rem'}}>
         <Settings
           passport={passport} paper={paper} passportPreset={passportPreset} paperPreset={paperPreset}
-          addBorder={addBorder} addCuttingGuide={addCuttingGuide} onImageUpload={handleImageUpload} onSettingsChange={handleSettingsChange}
+          addBorder={addBorder} addDottedBorder={addDottedBorder} addCuttingGuide={addCuttingGuide}
+          cuttingGuideOffsetMm={cuttingGuideOffsetMm} onImageUpload={handleImageUpload} onSettingsChange={handleSettingsChange}
           presets={{ passport: PRESET_PASSPORT_SIZES, paper: PRESET_PAPER_SIZES }}
         />
         <Editor 
           uploadedImage={uploadedImage} onCrop={handleCropApplied} passportDimensions={passport}
-          dpi={DPI}
+          dpi={EDITOR_DPI}
           addBorder={addBorder}
           key={passport.width / passport.height} 
         />
@@ -291,6 +299,12 @@ function PassportPhotoCreator() {
               >
                 <option value="portrait">Portrait</option>
                 <option value="landscape">Landscape</option>
+              </Form.Select>
+            </Form.Group>
+            <Form.Group className="passport-preview-control">
+              <Form.Label className="mb-1">Grid Photo Quality</Form.Label>
+              <Form.Select value={gridDpi} onChange={(event) => setGridDpi(Number(event.target.value))}>
+                {GRID_DPI_OPTIONS.map((value) => <option key={value} value={value}>{value} DPI</option>)}
               </Form.Select>
             </Form.Group>
             <Form.Group className="passport-preview-control passport-preview-control--slider">
@@ -321,8 +335,10 @@ function PassportPhotoCreator() {
           photoOrientation={photoOrientation}
           spacingMm={photoSpacing}
           addBorder={addBorder}
+          addDottedBorder={addDottedBorder}
           addCuttingGuide={addCuttingGuide}
-          dpi={DPI}
+          cuttingGuideOffsetMm={cuttingGuideOffsetMm}
+          dpi={gridDpi}
           onLayoutChange={setLayoutSummary}
         />
         <div className="d-grid gap-2 mt-3">

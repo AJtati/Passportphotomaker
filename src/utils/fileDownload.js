@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { Directory, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
+import { changeDpiBlob } from 'changedpi';
 
 const blobToBase64 = (blob) =>
   new Promise((resolve, reject) => {
@@ -61,9 +62,10 @@ export const savePdf = async (pdfDoc, filename) => {
   pdfDoc.save(filename);
 };
 
-export const saveCanvasImage = async (canvas, format, filename, quality = 1) => {
+export const saveCanvasImage = async (canvas, format, filename, quality = 1, dpi) => {
   const mimeType = format === 'JPG' || format === 'jpg' ? 'image/jpeg' : 'image/png';
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, mimeType, quality));
+  let blob = await new Promise((resolve) => canvas.toBlob(resolve, mimeType, quality));
   if (!blob) throw new Error('Failed to render image.');
+  if (dpi) blob = await changeDpiBlob(blob, dpi);
   await saveBlob(blob, filename, mimeType);
 };

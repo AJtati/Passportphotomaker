@@ -1,0 +1,10 @@
+services:
+  resume-compiler:
+    build: .
+    container_name: resume-compiler
+    restart: always
+    ports:
+      - "127.0.0.1:8090:8090"
+    environment:
+      - PORT=8090
+      - COMPILE_TIMEOUT_MS=20000

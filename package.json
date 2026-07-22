@@ -4,6 +4,7 @@
   "description": "Passport photo creation and print utility",
   "author": "AJtati",
   "private": true,
+  "proxy": "https://texlive.net",
   "main": "electron/main.js",
   "homepage": ".",
   "dependencies": {

@@ -226,7 +226,10 @@ function PassportPhotoCreator() {
     if (newSettings.addBorder !== undefined) setAddBorder(newSettings.addBorder);
     if (newSettings.addDottedBorder !== undefined) setAddDottedBorder(newSettings.addDottedBorder);
     if (newSettings.addCuttingGuide !== undefined) setAddCuttingGuide(newSettings.addCuttingGuide);
-    if (newSettings.cuttingGuideOffsetMm !== undefined) setCuttingGuideOffsetMm(newSettings.cuttingGuideOffsetMm);
+    if (newSettings.cuttingGuideOffsetMm !== undefined) {
+      const nextOffset = Math.round(newSettings.cuttingGuideOffsetMm * 10) / 10;
+      setCuttingGuideOffsetMm(nextOffset);
+    }
     if (newSettings.passportPreset) {
       if (newSettings.passportPreset !== passportPreset) shouldResetCrop = true;
       setPassportPreset(newSettings.passportPreset);
@@ -268,7 +271,9 @@ function PassportPhotoCreator() {
     }
   };
 
-  const spacingLabel = `${photoSpacing.toFixed(1)} mm`;
+  const minimumGuideSpacing = addCuttingGuide ? cuttingGuideOffsetMm * 2 : 0;
+  const effectivePhotoSpacing = Math.max(photoSpacing, minimumGuideSpacing);
+  const spacingLabel = `${effectivePhotoSpacing.toFixed(1)} mm`;
   const totalPhotosLabel = layoutSummary.total === 1 ? '1 photo' : `${layoutSummary.total} photos`;
 
   return (
@@ -313,10 +318,10 @@ function PassportPhotoCreator() {
                 <span className="passport-preview-toolbar__value">{spacingLabel}</span>
               </div>
               <Form.Range
-                min={0}
+                min={minimumGuideSpacing}
                 max={12}
                 step={0.1}
-                value={photoSpacing}
+                value={effectivePhotoSpacing}
                 onChange={(event) => setPhotoSpacing(Number(event.target.value))}
                 disabled={!croppedPhoto}
               />
@@ -333,7 +338,7 @@ function PassportPhotoCreator() {
           passport={passport}
           croppedPhoto={croppedPhoto}
           photoOrientation={photoOrientation}
-          spacingMm={photoSpacing}
+          spacingMm={effectivePhotoSpacing}
           addBorder={addBorder}
           addDottedBorder={addDottedBorder}
           addCuttingGuide={addCuttingGuide}

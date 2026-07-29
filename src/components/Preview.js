@@ -32,10 +32,6 @@ const drawPhotoTile = (ctx, image, x, y, width, height, orientation) => {
 };
 
 const drawCutGuides = (ctx, { cols, rows, spacing, startX, startY, photoWidthPx, photoHeightPx, gridWidth, gridHeight, dpi }) => {
-  if (cols <= 1 && rows <= 1) {
-    return;
-  }
-
   ctx.save();
   ctx.strokeStyle = '#6c757d';
   ctx.lineWidth = Math.max(1, Math.round(dpi / 300));
@@ -70,7 +66,9 @@ const Preview = forwardRef(({
   photoOrientation,
   spacingMm,
   addBorder,
+  addDottedBorder,
   addCuttingGuide,
+  cuttingGuideOffsetMm,
   dpi,
   onLayoutChange,
 }, ref) => {
@@ -165,13 +163,25 @@ const Preview = forwardRef(({
           // --- Draw Border if enabled ---
           if (addBorder) {
             ctx.strokeStyle = 'black';
-            ctx.lineWidth = 2; // 2px border at 300 DPI is very thin
+            ctx.lineWidth = Math.max(2, Math.round(dpi / 150));
             ctx.strokeRect(x, y, photoWidthPx, photoHeightPx);
           }
 
-          // --- Draw Cutting Guide if enabled ---
+          if (addDottedBorder) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(108, 117, 125, 0.55)';
+            ctx.lineWidth = Math.max(1, Math.round(dpi / 300));
+            ctx.lineCap = 'round';
+            ctx.setLineDash([
+              Math.max(1, Math.round(dpi / 300)),
+              Math.max(4, Math.round(dpi / 75)),
+            ]);
+            ctx.strokeRect(x, y, photoWidthPx, photoHeightPx);
+            ctx.restore();
+          }
+
           if (addCuttingGuide) {
-            const guideOffset = convertToPixels(2, 'mm', dpi);
+            const guideOffset = convertToPixels(cuttingGuideOffsetMm, 'mm', dpi);
             ctx.save();
             ctx.strokeStyle = '#6c757d';
             ctx.lineWidth = Math.max(1, Math.round(dpi / 300));
@@ -186,19 +196,21 @@ const Preview = forwardRef(({
       }
     }
 
-    drawCutGuides(ctx, {
-      cols,
-      rows,
-      spacing,
-      startX,
-      startY,
-      photoWidthPx,
-      photoHeightPx,
-      gridWidth,
-      gridHeight,
-      dpi,
-    });
-  }, [addBorder, addCuttingGuide, dpi, onLayoutChange, paper, passport, photoOrientation, ref, spacingMm, croppedPhoto]);
+    if (addCuttingGuide) {
+      drawCutGuides(ctx, {
+        cols,
+        rows,
+        spacing,
+        startX,
+        startY,
+        photoWidthPx,
+        photoHeightPx,
+        gridWidth,
+        gridHeight,
+        dpi,
+      });
+    }
+  }, [addBorder, addCuttingGuide, addDottedBorder, cuttingGuideOffsetMm, dpi, onLayoutChange, paper, passport, photoOrientation, ref, spacingMm, croppedPhoto]);
 
   useEffect(() => {
     drawCanvas();
@@ -208,7 +220,7 @@ const Preview = forwardRef(({
     <Card>
       <Card.Body>
         <Card.Title>Step 3: Preview & Download</Card.Title>
-        <p>A real-time preview of the final print layout with dashed cut guides between photos.</p>
+        <p>A real-time preview of the final print layout, including selected borders and cutting guides.</p>
         <div className="text-center themed-canvas-wrap" style={{ padding: '1rem', overflowX: 'auto' }}>
           <canvas ref={ref} style={{ width: '100%', backgroundColor: 'white' }} />
         </div>

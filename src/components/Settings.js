@@ -7,7 +7,9 @@ const Settings = ({
   passportPreset,
   paperPreset,
   addBorder,
+  addDottedBorder,
   addCuttingGuide,
+  cuttingGuideOffsetMm,
   onImageUpload,
   onSettingsChange,
   presets
@@ -94,7 +96,11 @@ const Settings = ({
   };
 
   const handleBorderChange = (e) => {
-    onSettingsChange({ addBorder: e.target.checked });
+    onSettingsChange({ addBorder: e.target.checked, addDottedBorder: false });
+  };
+
+  const handleDottedBorderChange = (e) => {
+    onSettingsChange({ addDottedBorder: e.target.checked, addBorder: false });
   };
 
   const handleCuttingGuideChange = (e) => {
@@ -188,11 +194,32 @@ const Settings = ({
           />
           <Form.Check 
             type="switch"
+            id="dotted-border-switch"
+            label="Add a light dotted border to each photo"
+            checked={addDottedBorder}
+            onChange={handleDottedBorderChange}
+          />
+          <Form.Check
+            type="switch"
             id="cutting-guide-switch"
-            label="Add cutting guide lines (2mm)"
+            label="Add cutting guide lines"
             checked={addCuttingGuide}
             onChange={handleCuttingGuideChange}
           />
+          <div className="ms-4 mt-1">
+            <div className="d-flex justify-content-between">
+              <Form.Label className="mb-0">Cutting guide offset</Form.Label>
+              <span>{cuttingGuideOffsetMm.toFixed(1)} mm</span>
+            </div>
+            <Form.Range
+              min={0.5}
+              max={2}
+              step={0.1}
+              value={cuttingGuideOffsetMm}
+              disabled={!addCuttingGuide}
+              onChange={(e) => onSettingsChange({ cuttingGuideOffsetMm: Number(e.target.value) })}
+            />
+          </div>
         </Form.Group>
 
       </Card.Body>

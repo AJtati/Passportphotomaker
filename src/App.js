@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { Container, Row, Col, Navbar, DropdownButton, Dropdown, Nav, Form } from 'react-bootstrap';
 import Settings from './components/Settings';
 import Editor from './components/Editor';
@@ -34,6 +34,7 @@ const TAB_ROUTES = {
   collage: '/collage',
   frame: '/frame',
   resume: '/resume',
+  panchangam: '/panchangam',
 };
 
 const ROUTE_TO_TAB = Object.fromEntries(
@@ -42,6 +43,7 @@ const ROUTE_TO_TAB = Object.fromEntries(
 
 const DEFAULT_TAB = 'passport';
 const THEME_STORAGE_KEY = 'ui-theme-mode';
+const Panchangam = lazy(() => import('./components/panchangam/Panchangam'));
 
 const getTabFromHash = () => {
   const rawHash = window.location.hash.replace(/^#/, '');
@@ -146,6 +148,9 @@ function App() {
               <Nav.Item>
                 <Nav.Link eventKey="resume">Build Resume</Nav.Link>
               </Nav.Item>
+              <Nav.Item>
+                <Nav.Link eventKey="panchangam">Panchangam</Nav.Link>
+              </Nav.Item>
             </Nav>
             <DropdownButton
               id="theme-dropdown"
@@ -170,6 +175,11 @@ function App() {
         {activeTab === 'collage' && <CollagePrint />}
         {activeTab === 'frame' && <CustomPhotoFrame />}
         {activeTab === 'resume' && <ResumeBuilder />}
+        {activeTab === 'panchangam' && (
+          <Suspense fallback={<p className="text-center text-muted py-5">Loading Panchangam…</p>}>
+            <Panchangam />
+          </Suspense>
+        )}
       </Container>
     </>
   );

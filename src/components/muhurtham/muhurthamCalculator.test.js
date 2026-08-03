@@ -1,5 +1,6 @@
 import {
   buildScoreLedger,
+  buildPersonalWarnings,
   calculateChandrabala,
   calculatePersonalShubhaYoga,
   calculateTarabala,
@@ -91,6 +92,17 @@ describe('Personal Muhurtham calculations', () => {
     expect(selectQualifiedCandidates(candidates, 50)).toHaveLength(16);
   });
 
+  test('keeps the lowest assessed scores when no minimum is requested', () => {
+    const candidates = [82, 49, 12, 0].map((score, index) => ({
+      id: `score-${score}`,
+      date: `2026-08-${String(index + 1).padStart(2, '0')}`,
+      start: `2026-08-${String(index + 1).padStart(2, '0')}T04:00:00Z`,
+      lagna: { key: `lagna-${index}` }, score, blockingCount: index,
+    }));
+
+    expect(selectQualifiedCandidates(candidates).map((candidate) => candidate.score)).toEqual([82, 49, 12, 0]);
+  });
+
   test('audits the cited Middlesbrough Guru Hora and Simha Lagna with explicit engine timings', () => {
     const city = { lat: 54.5742, lng: -1.235, tz: 'Europe/London' };
     const previousDay = {
@@ -128,5 +140,16 @@ describe('personal Shubha suitability', () => {
   test('does not override a classical personal blocker', () => {
     const blocked = { ...fit, tara: { ...fit.tara, key: 'vipat', tone: 'avoid' } };
     expect(calculatePersonalShubhaYoga(blocked, [{ key: 'amrita-siddhi' }], true).tone).toBe('unsuitable');
+  });
+
+  test('preserves a spouse Vipat warning even when the other partner is favourable', () => {
+    const warnings = buildPersonalWarnings([
+      { id: 'owner', name: 'Partner', role: 'owner', tara: fit.tara, chandra: fit.chandra },
+      { id: 'spouse', name: 'Wife', role: 'spouse', tara: { ...fit.tara, key: 'vipat', tone: 'avoid', name: { te: 'విపత్ తార', en: 'Vipat Tara' } }, chandra: fit.chandra },
+    ]);
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatchObject({ personName: 'Wife', kind: 'tara', factor: { en: 'Vipat Tara' } });
+    expect(warnings[0].message.en).toMatch(/does not cancel/i);
   });
 });

@@ -123,6 +123,7 @@ html[data-theme='dark'] .muhurtham-page {
 .muhurtham-result-rail > button > div { display: flex; flex-direction: column; min-width: 0; }
 .muhurtham-result-rail > button strong { font-size: .79rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .muhurtham-result-rail > button small { color: var(--m-muted); }
+.muhurtham-result-rail > button em { color: var(--m-red); font-size: .63rem; font-style: normal; font-weight: 700; line-height: 1.25; margin-top: .2rem; overflow-wrap: anywhere; }
 .muhurtham-result-rail > button b { color: var(--m-amber); font-size: 1.1rem; }
 .muhurtham-result-rail > button.is-active { background: color-mix(in srgb, var(--m-accent) 9%, var(--m-surface)); box-shadow: inset 4px 0 var(--m-accent); }
 .muhurtham-result-rail > button.is-best b { color: var(--m-green); }
@@ -143,6 +144,17 @@ html[data-theme='dark'] .muhurtham-page {
 .muhurtham-time-proof small { color: var(--m-muted); overflow-wrap: anywhere; }
 .muhurtham-selected-download { border-color: var(--m-accent) !important; color: var(--m-accent) !important; flex: 0 0 auto; font-weight: 700 !important; margin-left: auto; }
 .muhurtham-selected-download:hover { background: var(--m-accent) !important; color: #fff !important; }
+.muhurtham-family-warning { background: color-mix(in srgb, var(--m-red) 7%, var(--m-surface)); border-bottom: 1px solid color-mix(in srgb, var(--m-red) 35%, var(--m-border)); border-top: 1px solid color-mix(in srgb, var(--m-red) 35%, var(--m-border)); padding: 1rem 1.4rem; }
+.muhurtham-family-warning > header { align-items: center; display: flex; gap: .75rem; }
+.muhurtham-family-warning > header > span { align-items: center; background: var(--m-red); border-radius: 50%; color: #fff; display: flex; flex: 0 0 auto; font-weight: 800; height: 34px; justify-content: center; width: 34px; }
+.muhurtham-family-warning > header > div { display: flex; flex-direction: column; }
+.muhurtham-family-warning > header strong { color: var(--m-red); font-family: 'Noto Sans Telugu', sans-serif; }
+.muhurtham-family-warning > header small { color: var(--m-muted); }
+.muhurtham-family-warning > div { display: grid; gap: .55rem; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: .8rem; }
+.muhurtham-family-warning article { background: var(--m-surface); border: 1px solid color-mix(in srgb, var(--m-red) 30%, var(--m-border)); border-radius: 10px; padding: .7rem .8rem; }
+.muhurtham-family-warning article strong { color: var(--m-red); font-family: 'Noto Sans Telugu', sans-serif; }
+.muhurtham-family-warning article p { color: var(--m-ink); font-size: .76rem; margin: .25rem 0 0; }
+.muhurtham-family-warning > p { color: var(--m-muted); font-size: .74rem; margin: .75rem 0 0; }
 .muhurtham-result-main > section { border-bottom: 1px solid var(--m-border); padding: clamp(1.2rem, 3vw, 2rem); }
 .muhurtham-section-title { margin-bottom: 1.1rem; }
 .muhurtham-section-title > span { height: 36px; width: 36px; }
@@ -275,6 +287,7 @@ html[data-theme='dark'] .muhurtham-page {
   .muhurtham-panchanga-strip { grid-template-columns: repeat(2, 1fr); }
   .muhurtham-time-proof { flex-wrap: wrap; }
   .muhurtham-selected-download { margin-left: calc(1.25rem + .8rem); width: calc(100% - 1.25rem - .8rem); }
+  .muhurtham-family-warning > div { grid-template-columns: 1fr; }
 }
 @media (max-width: 560px) {
   .muhurtham-page { margin-bottom: 2.5rem; }

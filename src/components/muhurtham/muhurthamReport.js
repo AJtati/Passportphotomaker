@@ -103,7 +103,13 @@ const coverPage = (report, language, selectedOnly = false) => {
   drawWrapped(ctx, `${local(window.panchanga.tithi, language)} · ${local(window.panchanga.nakshatra.name, language)} · ${local(window.panchanga.moonRashi.name, language)}`, MARGIN + 28, 688, WIDTH - MARGIN * 2 - 56, { size: 22, color: '#d9c8b9' });
   drawWrapped(ctx, `${copy(language, 'స్కోరు', 'Score')}: ${window.score}/100 · ${copy(language, 'కుటుంబ సభ్యులు', 'People evaluated')}: ${report.participants.length}`, MARGIN + 28, 736, WIDTH - MARGIN * 2 - 56, { size: 19, weight: 700, color: '#d9c8b9' });
 
-  let y = 900;
+  if (window.personalWarnings?.length) {
+    roundedRect(ctx, MARGIN, 810, WIDTH - MARGIN * 2, 92, 14); ctx.fillStyle = '#fff1ed'; ctx.fill(); ctx.strokeStyle = '#d86b56'; ctx.stroke();
+    const warningText = window.personalWarnings.map((warning) => `${warning.personName}: ${local(warning.factor, language)}`).join(' · ');
+    drawWrapped(ctx, `${copy(language, 'వ్యక్తిగత హెచ్చరిక · ఇతర కుటుంబ సభ్యుల అనుకూలత దీనిని రద్దు చేయదు', 'INDIVIDUAL CAUTION · not cancelled by another family member')}: ${warningText}`, MARGIN + 20, 846, WIDTH - MARGIN * 2 - 40, { size: 18, weight: 700, color: COLORS.red, lineHeight: 26, maxLines: 2 });
+  }
+
+  let y = window.personalWarnings?.length ? 955 : 900;
   setFont(ctx, 28, 700, 'Georgia, "Noto Serif Telugu", serif'); ctx.fillStyle = COLORS.accent;
   ctx.fillText(copy(language, 'కార్య క్రమం', 'CEREMONY TIMELINE'), MARGIN, y);
   y += 62;
@@ -251,16 +257,19 @@ const alternativesPages = (report, language, firstPageNumber) => {
   const pages = [];
   let pageNumber = firstPageNumber;
   for (let offset = 0; offset < report.windows.length; offset += 8) {
-    const page = makePage(copy(language, 'అన్ని అర్హత పొందిన సమయాలు', 'All Qualified Windows'), `${report.search.startDate} · ${report.search.days} ${copy(language, 'రోజులు', 'days')} · ${report.windows.length} ${copy(language, 'సమయాలు · స్కోరు 50+', 'windows · score 50+')}`, pageNumber);
+    const page = makePage(copy(language, 'లెక్కించిన అన్ని సమయాలు', 'All Assessed Windows'), `${report.search.startDate} · ${report.search.days} ${copy(language, 'రోజులు', 'days')} · ${report.windows.length} ${copy(language, 'సమయాలు · అత్యధికం నుండి అత్యల్పం వరకు', 'windows · highest through lowest')}`, pageNumber);
     const { ctx } = page; let y = 230;
     report.windows.slice(offset, offset + 8).forEach((window, itemIndex) => {
       const index = offset + itemIndex;
-      const height = 150; roundedRect(ctx, MARGIN, y, WIDTH - MARGIN * 2, height - 12, 15);
+      const height = 165; roundedRect(ctx, MARGIN, y, WIDTH - MARGIN * 2, height - 12, 15);
       ctx.fillStyle = index === 0 ? '#efe5d4' : COLORS.soft; ctx.fill();
       setFont(ctx, 30, 700); ctx.fillStyle = COLORS.accent; ctx.fillText(String(index + 1).padStart(2, '0'), MARGIN + 22, y + 48);
       setFont(ctx, 23, 700); ctx.fillStyle = COLORS.ink;
       ctx.fillText(`${formatDate(window.start, report.city.tz, language)} · ${formatTime(window.start, report.city.tz, language)} – ${formatTime(window.end, report.city.tz, language)}`, MARGIN + 90, y + 43);
       drawWrapped(ctx, `${local(HORA_PLANETS[window.hora.planetKey].name, language)} ${copy(language, 'హోరా', 'Hora')} · ${local(window.lagna.name, language)} ${copy(language, 'లగ్నం', 'Lagna')} · ${local(window.panchanga.nakshatra.name, language)}`, MARGIN + 90, y + 82, 820, { size: 19, color: COLORS.muted, maxLines: 2 });
+      if (window.personalWarnings?.length) {
+        drawFittedText(ctx, `⚠ ${window.personalWarnings.map((warning) => `${warning.personName}: ${local(warning.factor, language)}`).join(' · ')}`, MARGIN + 90, y + 128, 820, { size: 17, minSize: 12, weight: 700, color: COLORS.red });
+      }
       setFont(ctx, 27, 700); ctx.fillStyle = window.grade === 'best' ? COLORS.green : COLORS.amber; ctx.fillText(`${window.score}`, WIDTH - MARGIN - 70, y + 55);
       y += height;
     });

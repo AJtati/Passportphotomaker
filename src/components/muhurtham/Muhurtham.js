@@ -167,8 +167,8 @@ function Muhurtham() {
         return { ...person, name: person.name.trim(), chart };
       });
       const response = await fetchDetailedRange(startDate, searchDays, eventCity, (done, total) => setProgress({ done, total }));
-      const windows = evaluateMuhurtamDays(response.data, eventCity, preparedPeople, { minScore: 50 });
-      if (!windows.length) throw new Error('No Hora–Lagna overlap scored 50 or above in this range. Try 14 or 30 days.');
+      const windows = evaluateMuhurtamDays(response.data, eventCity, preparedPeople, { minScore: 0 });
+      if (!windows.length) throw new Error('No usable Hora–Lagna overlap remained after prohibited periods were removed. Try 14 or 30 days.');
       const nextReport = {
         createdAt: new Date().toISOString(), ceremony: 'griha-pravesham', city: eventCity,
         search: { startDate, days: Number(searchDays) }, participants: preparedPeople, windows,
@@ -282,18 +282,18 @@ function Muhurtham() {
       ) : (
         <section className="muhurtham-results">
           <div className="muhurtham-mobile-window-picker">
-            <Form.Label htmlFor="muhurtham-window-select">{phrase(language, `అన్ని ${report.windows.length} సమయాలు · స్కోరు 50 లేదా ఎక్కువ`, `All ${report.windows.length} windows · score 50 or above`)}</Form.Label>
+            <Form.Label htmlFor="muhurtham-window-select">{phrase(language, `లెక్కించిన అన్ని ${report.windows.length} సమయాలు · అత్యధికం నుండి అత్యల్పం వరకు`, `All ${report.windows.length} assessed windows · highest through lowest`)}</Form.Label>
             <Form.Select id="muhurtham-window-select" value={selected.id} onChange={(event) => setSelectedId(event.target.value)}>
               {report.windows.map((window, index) => (
-                <option key={window.id} value={window.id}>{String(index + 1).padStart(2, '0')} · {formatDate(window.start, report.city.tz, language)} · {formatTime(window.start, report.city.tz, language)}–{formatTime(window.end, report.city.tz, language)} · {window.score}/100</option>
+                <option key={window.id} value={window.id}>{String(index + 1).padStart(2, '0')} · {formatDate(window.start, report.city.tz, language)} · {formatTime(window.start, report.city.tz, language)}–{formatTime(window.end, report.city.tz, language)} · {window.score}/100{window.personalWarnings?.length ? ` · ⚠ ${window.personalWarnings.map((warning) => `${warning.personName}: ${bilingual(warning.factor, language)}`).join(', ')}` : ''}</option>
               ))}
             </Form.Select>
           </div>
           <div className="muhurtham-result-rail" aria-label="Ranked Muhurtham windows">
-            <header><span><span className="muhurtham-kicker">{phrase(language, 'ర్యాంక్ చేసిన సమయాలు', 'RANKED WINDOWS')}</span><small>{phrase(language, 'స్కోరు 50+', 'Score 50+')}</small></span><strong>{report.windows.length}</strong></header>
+            <header><span><span className="muhurtham-kicker">{phrase(language, 'ర్యాంక్ చేసిన అన్ని సమయాలు', 'ALL RANKED WINDOWS')}</span><small>{phrase(language, 'అత్యధికం నుండి అత్యల్ప స్కోరు వరకు', 'Highest through lowest score')}</small></span><strong>{report.windows.length}</strong></header>
             {report.windows.map((window, index) => (
               <button key={window.id} type="button" className={`${window.id === selected.id ? 'is-active' : ''} is-${window.grade}`} onClick={() => setSelectedId(window.id)}>
-                <span>{String(index + 1).padStart(2, '0')}</span><div><strong>{formatDate(window.start, report.city.tz, language)}</strong><small>{formatTime(window.start, report.city.tz, language)} – {formatTime(window.end, report.city.tz, language)}</small></div><b>{window.score}</b>
+                <span>{String(index + 1).padStart(2, '0')}</span><div><strong>{formatDate(window.start, report.city.tz, language)}</strong><small>{formatTime(window.start, report.city.tz, language)} – {formatTime(window.end, report.city.tz, language)}</small>{window.personalWarnings?.length > 0 && <em>⚠ {window.personalWarnings.map((warning) => `${warning.personName}: ${bilingual(warning.factor, language)}`).join(' · ')}</em>}</div><b>{window.score}</b>
               </button>
             ))}
           </div>
@@ -304,6 +304,14 @@ function Muhurtham() {
               <div className="muhurtham-score"><strong>{selected.score}</strong><span>/100</span><small>{phrase(language, 'పారదర్శక స్కోరు', 'transparent score')}</small></div>
             </header>
             <div className="muhurtham-time-proof"><span aria-hidden="true">◷</span><div><strong>{zone.label}</strong><small>{report.city.name} · {report.city.tz} · {phrase(language, 'ఎంచుకున్న తేదీకి అధికారిక స్థానిక సమయం', 'Official local time for the selected date')}</small></div><Button variant="outline-secondary" className="muhurtham-selected-download" onClick={downloadSelected} disabled={downloadingSelected}>{downloadingSelected ? <Spinner size="sm" /> : '⇩'} {text(language, 'selectedDownload')}</Button></div>
+
+            {selected.personalWarnings?.length > 0 && (
+              <aside className="muhurtham-family-warning" role="note">
+                <header><span aria-hidden="true">!</span><div><strong>{phrase(language, 'వ్యక్తిగత హెచ్చరికను కుటుంబ స్కోరు దాచదు', 'Individual caution is not cancelled by the family score')}</strong><small>{phrase(language, 'ప్రతి వ్యక్తి ఫలితం విడిగా చూపబడుతుంది', 'Each person remains separately evaluated')}</small></div></header>
+                <div>{selected.personalWarnings.map((warning) => <article key={warning.key}><strong>{warning.personName} · {bilingual(warning.factor, language)}</strong><p>{bilingual(warning.message, language)}</p></article>)}</div>
+                <p>{phrase(language, 'మొత్తం స్కోరు పోలిక కోసం మాత్రమే. ఒక భాగస్వామికి విపత్, ప్రత్యరి, నైధన తార లేదా అష్టమ చంద్రుడు ఉంటే, మరొకరి అనుకూలత దాన్ని రద్దు చేయదు; ఈ సమయం జాగ్రత్తగా సమీక్షించాల్సిందే.', 'The combined score is for comparison only. If one partner has Vipat, Pratyari, Naidhana Tara or Chandrashtama, the other partner’s favourable result does not cancel it; this window remains a caution requiring review.')}</p>
+              </aside>
+            )}
 
             <section className="muhurtham-timeline"><div className="muhurtham-section-title"><span>01</span><div><small>{phrase(language, 'కార్య క్రమం', 'CEREMONY SEQUENCE')}</small><h3 data-pretext>{phrase(language, 'ఎప్పుడు ఏం చేయాలి', 'What to do and when')}</h3></div></div>
               <div className="muhurtham-timeline-track">

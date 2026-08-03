@@ -314,12 +314,36 @@ const dedupeCandidates = (candidates, limit = Infinity) => {
   return selected;
 };
 
-export const selectQualifiedCandidates = (candidates, minScore = 50, maxResults = Infinity) => dedupeCandidates(
+export const selectQualifiedCandidates = (candidates, minScore = 0, maxResults = Infinity) => dedupeCandidates(
   [...candidates]
     .filter((candidate) => candidate.score >= minScore)
     .sort((first, second) => first.blockingCount - second.blockingCount || second.score - first.score),
   maxResults
 );
+
+export const buildPersonalWarnings = (fits = []) => fits.flatMap((fit) => {
+  const personName = fit.name || fit.role || 'Person';
+  const warnings = [];
+  if (['vipat', 'pratyari', 'naidhana'].includes(fit.tara.key)) {
+    warnings.push({
+      key: `${fit.id}-tara`, personId: fit.id, personName, role: fit.role, kind: 'tara', factor: fit.tara.name,
+      message: {
+        te: `${personName}కు ${fit.tara.name.te} ఉంది. మరొకరి అనుకూల ఫలితం ఈ వ్యక్తిగత తారా హెచ్చరికను రద్దు చేయదు.`,
+        en: `${personName} has ${fit.tara.name.en}. Another person's favourable result does not cancel this individual Tara caution.`,
+      },
+    });
+  }
+  if (fit.chandra.house === 8) {
+    warnings.push({
+      key: `${fit.id}-chandra`, personId: fit.id, personName, role: fit.role, kind: 'chandra', factor: fit.chandra.name,
+      message: {
+        te: `${personName}కు అష్టమ చంద్రుడు ఉంది. కుటుంబ మొత్తం స్కోరు అనుకూలంగా ఉన్నా ఈ వ్యక్తిగత హెచ్చరిక అలాగే ఉంటుంది.`,
+        en: `${personName} has Chandrashtama. This individual caution remains even when the combined family score is favourable.`,
+      },
+    });
+  }
+  return warnings;
+});
 
 export const buildScoreLedger = (components, blockingCount = 0) => {
   const rawScore = Math.round(components.reduce((sum, component) => sum + Number(component.value || 0), 0));
@@ -336,7 +360,7 @@ export const evaluateMuhurtamDays = (days, city, participants, options = {}) => 
   if (!participants?.length) throw new Error('Add at least one person.');
   const normalizedOptions = typeof options === 'number'
     ? { maxResults: options, minScore: 0 }
-    : { minScore: 50, maxResults: Infinity, ...options };
+    : { minScore: 0, maxResults: Infinity, ...options };
   const minScore = Math.max(0, Number(normalizedOptions.minScore) || 0);
   const maxResults = Number.isFinite(Number(normalizedOptions.maxResults))
     ? Math.max(1, Number(normalizedOptions.maxResults))
@@ -345,15 +369,16 @@ export const evaluateMuhurtamDays = (days, city, participants, options = {}) => 
     .sort((first, second) => second.baseScore - first.baseScore);
   const enriched = preliminary.map((candidate) => {
     const chartStrength = eventChartStrength(candidate.midpoint, city, candidate.lagna);
+    const personalWarnings = buildPersonalWarnings(candidate.fits);
     const blockingCount = [candidate.checks.weekdayPass, candidate.checks.tithiPass, candidate.checks.nakshatraPass,
       candidate.checks.yogaPass, candidate.checks.karanaPass]
-      .filter((value) => value === false).length + candidate.fits.filter((fit) => ['vipat', 'pratyari', 'naidhana'].includes(fit.tara.key) || fit.chandra.house === 8).length;
+      .filter((value) => value === false).length + personalWarnings.length;
     const scoreLedger = buildScoreLedger([...candidate.scoreComponents, ...chartStrength.components], blockingCount);
     const score = scoreLedger.finalScore;
     return {
-      ...candidate, chartStrength, score, blockingCount,
+      ...candidate, chartStrength, score, blockingCount, personalWarnings,
       scoreLedger,
-      grade: blockingCount === 0 && score >= 75 ? 'best' : blockingCount <= 1 && score >= 58 ? 'review' : 'caution',
+      grade: personalWarnings.length ? 'caution' : blockingCount === 0 && score >= 75 ? 'best' : blockingCount <= 1 && score >= 58 ? 'review' : 'caution',
     };
   });
   return selectQualifiedCandidates(enriched, minScore, maxResults);

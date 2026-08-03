@@ -1,4 +1,6 @@
 import { calculateHoras, enrichPanchangamDays, moonEmoji } from './calendarDetails';
+import { calculateLagnasForCivilDate, calculateLagnasForCivilDates } from './lagnaCalculator';
+import { calculateSpecialYogas } from './specialYogaCalculator';
 
 const API_BASE = 'https://telugupanchangam.app/api';
 const CACHE_PREFIX = 'passport-utility-panchangam-cache:';
@@ -158,14 +160,41 @@ export const fetchDetailedDay = async (date, city) => {
     data: {
       ...selectedDay,
       previousHoras: selectedIndex > 0 ? calculateHoras(days[selectedIndex - 1], days[selectedIndex]) : [],
+      previousSpecialYogas: selectedIndex > 0 ? calculateSpecialYogas(days[selectedIndex - 1], days[selectedIndex]) : [],
+      lagnas: calculateLagnasForCivilDate(date, city),
     },
     cached: responses.every((response) => response.cached),
     computedAt: responses[2].computedAt,
   };
 };
 
+export const fetchDetailedRange = async (startDate, dayCount, city, onProgress) => {
+  const count = Math.max(1, Math.min(31, Number(dayCount) || 1));
+  const targetDates = Array.from({ length: count }, (_, index) => addIsoDays(startDate, index));
+  const dates = [addIsoDays(startDate, -2), addIsoDays(startDate, -1), ...targetDates,
+    addIsoDays(targetDates[targetDates.length - 1], 1), addIsoDays(targetDates[targetDates.length - 1], 2)];
+  const responses = await loadDetailedDates(dates, city, onProgress);
+  const fullDays = responses.map((response) => response.data);
+  const enriched = enrichPanchangamDays(fullDays, targetDates, city.tz, { includeHoras: true });
+  const lagnasByDate = calculateLagnasForCivilDates(targetDates, city);
+
+  return {
+    data: enriched.map((day) => {
+      const sourceIndex = fullDays.findIndex((item) => item.date === day.date);
+      return {
+        ...day,
+        previousHoras: sourceIndex > 0 ? calculateHoras(fullDays[sourceIndex - 1], fullDays[sourceIndex]) : [],
+        previousSpecialYogas: sourceIndex > 0 ? calculateSpecialYogas(fullDays[sourceIndex - 1], fullDays[sourceIndex]) : [],
+        lagnas: lagnasByDate[day.date] || [],
+      };
+    }),
+    cached: responses.every((response) => response.cached),
+    computedAt: responses.find((response) => !response.cached)?.computedAt || responses[0]?.computedAt,
+  };
+};
+
 export const fetchDetailedMonth = async (year, month, city, onProgress) => {
-  const cacheKey = `detailed-month-v1:${year}:${month}:${city.lat}:${city.lng}:${city.tz}`;
+  const cacheKey = `detailed-month-v2:${year}:${month}:${city.lat}:${city.lng}:${city.tz}`;
   const saved = readCache(cacheKey);
   const maxAge = DETAIL_CACHE_DAYS * 24 * 60 * 60 * 1000;
   if (saved && Date.now() - saved.savedAt < maxAge) {
@@ -256,6 +285,21 @@ export const fetchYear = async (year, city, onProgress) => {
 };
 
 export const searchCities = (query) => request('/geocode', { q: query }, { cache: false });
+
+export const resolveCoordinates = async (lat, lng) => {
+  const response = await searchCities(`${lat},${lng}`);
+  const results = Array.isArray(response.data) ? response.data : [response.data].filter(Boolean);
+  const match = results.find((result) => result.timezone || result.tz);
+  if (!match) throw new Error('The timezone for this location could not be resolved.');
+  return {
+    name: match.displayName || match.name || 'Current location',
+    lat: Number(match.lat ?? lat),
+    lng: Number(match.lng ?? lng),
+    tz: match.timezone || match.tz,
+    source: 'gps',
+    timezoneSource: 'coordinates',
+  };
+};
 
 export const fetchFestivals = async (year, city) => {
   try {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Alert, Button, Form, ListGroup, Modal, Spinner } from 'react-bootstrap';
-import { searchCities } from './panchangamApi';
+import { resolveCoordinates, searchCities } from './panchangamApi';
 import { readRecentCities } from './helpers';
 
 function LocationPicker({ show, onHide, onSelect }) {
@@ -15,6 +15,8 @@ function LocationPicker({ show, onHide, onSelect }) {
       lat: result.lat,
       lng: result.lng,
       tz: result.timezone || result.tz,
+      ...(result.source ? { source: result.source } : {}),
+      ...(result.timezoneSource ? { timezoneSource: result.timezoneSource } : {}),
     });
     setQuery('');
     setResults([]);
@@ -49,14 +51,21 @@ function LocationPicker({ show, onHide, onSelect }) {
     setLoading(true);
     setError('');
     navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        selectCity({
-          name: 'Current location',
-          lat: coords.latitude,
-          lng: coords.longitude,
-          tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-        });
-        setLoading(false);
+      async ({ coords }) => {
+        try {
+          selectCity(await resolveCoordinates(coords.latitude, coords.longitude));
+        } catch {
+          selectCity({
+            name: 'Current location',
+            lat: coords.latitude,
+            lng: coords.longitude,
+            tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+            source: 'gps',
+            timezoneSource: 'browser-fallback',
+          });
+        } finally {
+          setLoading(false);
+        }
       },
       () => {
         setError('Location permission was not granted. Search for your city instead.');
@@ -128,4 +137,3 @@ function LocationPicker({ show, onHide, onSelect }) {
 }
 
 export default LocationPicker;
-

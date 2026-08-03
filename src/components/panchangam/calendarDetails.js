@@ -1,3 +1,5 @@
+import { calculateSpecialYogas } from './specialYogaCalculator';
+
 const DURMUHURTHAM_OFFSETS = [
   [10.4],
   [6.4, 8.8],
@@ -198,6 +200,7 @@ export const enrichPanchangamDays = (days, targetDates, timezone, { includeHoras
     if (!wanted.has(day.date)) return [];
     const solar = calculateSolarTimings(day, days[index + 1]);
     const nakshatra = calculateNakshatraTimings(days, index, timezone);
+    const specialYogas = calculateSpecialYogas(day, days[index + 1]);
     const horas = includeHoras ? calculateHoras(day, days[index + 1]) : undefined;
     return [{
       ...day,
@@ -207,6 +210,7 @@ export const enrichPanchangamDays = (days, targetDates, timezone, { includeHoras
       abhijitMuhurtam: solar.abhijitMuhurtam,
       varjyam: nakshatra.varjyam,
       amritaGadiya: nakshatra.amritaGadiya,
+      specialYogas,
       ...(includeHoras ? { horas } : {}),
       isEkadashi: day.tithi?.number === 11 || day.tithi?.number === 26,
       isAmavasya: day.tithi?.number === 30,

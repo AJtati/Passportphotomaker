@@ -1,5 +1,7 @@
 import React from 'react';
 import HoraSchedule from './HoraSchedule';
+import LagnaSchedule from './LagnaSchedule';
+import YogaSection from './YogaSection';
 import { bilingual, formatLongDate, formatRange, formatRanges, formatTime } from './helpers';
 
 const DetailCard = ({ label, value, meta, highlight }) => (
@@ -13,12 +15,13 @@ const DetailCard = ({ label, value, meta, highlight }) => (
 function DayDetails({ data, city, language, compact = false }) {
   if (!data) return null;
   const tz = city.tz;
+  const phrase = (te, en) => bilingual({ te, en }, language);
   const panchanga = [
-    ['Tithi', data.tithi],
-    ['Nakshatra', data.nakshatra],
-    ['Yoga', data.yoga],
-    ['Karana', data.karana],
-    ['Vara', data.vara],
+    [phrase('తిథి', 'Tithi'), data.tithi],
+    [phrase('నక్షత్రం', 'Nakshatra'), data.nakshatra],
+    [phrase('యోగం', 'Yoga'), data.yoga],
+    [phrase('కరణం', 'Karana'), data.karana],
+    [phrase('వారం', 'Vara'), data.vara],
   ];
 
   return (
@@ -50,35 +53,37 @@ function DayDetails({ data, city, language, compact = false }) {
               key={label}
               label={label}
               value={bilingual(value, language)}
-              meta={value?.endsAt ? `Until ${formatTime(value.endsAt, tz, data.date)}` : undefined}
-              highlight={label === 'Tithi'}
+              meta={value?.endsAt ? `${phrase('ముగింపు', 'Until')} ${formatTime(value.endsAt, tz, data.date)}` : undefined}
+              highlight={value === data.tithi}
             />
           ))}
         </div>
       </section>
 
       <section>
-        <h3>Sun & Moon</h3>
+        <h3>{phrase('సూర్య చంద్రులు', 'Sun & Moon')}</h3>
         <div className="panchangam-sky-grid">
-          <DetailCard label="Sunrise" value={formatTime(data.sunrise, tz)} />
-          <DetailCard label="Sunset" value={formatTime(data.sunset, tz)} />
-          <DetailCard label="Moonrise" value={formatTime(data.moonrise, tz)} />
-          <DetailCard label="Moonset" value={formatTime(data.moonset, tz)} />
+          <DetailCard label={phrase('సూర్యోదయం', 'Sunrise')} value={formatTime(data.sunrise, tz)} />
+          <DetailCard label={phrase('సూర్యాస్తమయం', 'Sunset')} value={formatTime(data.sunset, tz)} />
+          <DetailCard label={phrase('చంద్రోదయం', 'Moonrise')} value={formatTime(data.moonrise, tz)} />
+          <DetailCard label={phrase('చంద్రాస్తమయం', 'Moonset')} value={formatTime(data.moonset, tz)} />
         </div>
       </section>
 
       <section>
-        <h3>Day timings</h3>
+        <h3>{phrase('దిన సమయాలు', 'Day timings')}</h3>
         <div className="panchangam-timing-grid">
-          <DetailCard label="Rahukalam" value={formatRange(data.rahukalam, tz, data.date)} highlight />
-          <DetailCard label="Gulika Kalam" value={formatRange(data.gulikaKalam, tz, data.date)} />
-          <DetailCard label="Yamagandam" value={formatRange(data.yamagandam, tz, data.date)} />
-          <DetailCard label="Durmuhurtham" value={formatRanges(data.durmuhurtham, tz, false, data.date)} highlight />
-          <DetailCard label="Varjyam" value={formatRanges(data.varjyam, tz, false, data.date)} highlight />
-          <DetailCard label="Abhijit Muhurtam" value={formatRange(data.abhijitMuhurtam, tz, data.date)} />
-          <DetailCard label="Amrita Gadiya" value={formatRanges(data.amritaGadiya, tz, false, data.date)} />
+          <DetailCard label={phrase('రాహుకాలం', 'Rahukalam')} value={formatRange(data.rahukalam, tz, data.date)} highlight />
+          <DetailCard label={phrase('గుళిక కాలం', 'Gulika Kalam')} value={formatRange(data.gulikaKalam, tz, data.date)} />
+          <DetailCard label={phrase('యమగండం', 'Yamagandam')} value={formatRange(data.yamagandam, tz, data.date)} />
+          <DetailCard label={phrase('దుర్ముహూర్తం', 'Durmuhurtham')} value={formatRanges(data.durmuhurtham, tz, false, data.date)} highlight />
+          <DetailCard label={phrase('వర్జ్యం', 'Varjyam')} value={formatRanges(data.varjyam, tz, false, data.date)} highlight />
+          <DetailCard label={phrase('అభిజిత్ ముహూర్తం', 'Abhijit Muhurtam')} value={formatRange(data.abhijitMuhurtam, tz, data.date)} />
+          <DetailCard label={phrase('అమృత ఘడియలు', 'Amrita Gadiya')} value={formatRanges(data.amritaGadiya, tz, false, data.date)} />
         </div>
       </section>
+
+      <YogaSection data={data} city={city} language={language} />
 
       {!compact && (
         <section>
@@ -87,8 +92,15 @@ function DayDetails({ data, city, language, compact = false }) {
         </section>
       )}
 
+      {!compact && (
+        <section>
+          <h3>ఉదయ లగ్నం <small>Sidereal Rising Sign</small></h3>
+          <LagnaSchedule data={data} city={city} language={language} />
+        </section>
+      )}
+
       <section>
-        <h3>Festivals</h3>
+        <h3>{phrase('పండుగలు', 'Festivals')}</h3>
         {data.festivals?.length ? (
           <div className="panchangam-festival-list">
             {data.festivals.map((festival, index) => (
@@ -98,7 +110,7 @@ function DayDetails({ data, city, language, compact = false }) {
               </div>
             ))}
           </div>
-        ) : <p className="panchangam-empty-copy">No major festivals listed for this date.</p>}
+        ) : <p className="panchangam-empty-copy">{phrase('ఈ తేదీకి ప్రధాన పండుగలు నమోదు కాలేదు.', 'No major festivals are listed for this date.')}</p>}
       </section>
     </article>
   );

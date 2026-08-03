@@ -17,10 +17,11 @@ const qualityText = (tone, language) => {
   return language === 'te' ? text.te : language === 'en' ? text.en : `${text.te} · ${text.en}`;
 };
 
-const remainingText = (end, now) => {
+const phrase = (language, te, en) => bilingual({ te, en }, language);
+const remainingText = (end, now, language) => {
   const minutes = Math.max(1, Math.ceil((new Date(end).getTime() - now) / 60000));
-  if (minutes < 60) return `${minutes} min remaining`;
-  return `${Math.floor(minutes / 60)} hr ${minutes % 60} min remaining`;
+  if (minutes < 60) return phrase(language, `${minutes} నిమిషాలు మిగిలాయి`, `${minutes} min remaining`);
+  return phrase(language, `${Math.floor(minutes / 60)} గంటలు ${minutes % 60} నిమిషాలు మిగిలాయి`, `${Math.floor(minutes / 60)} hr ${minutes % 60} min remaining`);
 };
 
 const HoraRow = ({ hora, city, language, referenceDate, active }) => {
@@ -34,9 +35,9 @@ const HoraRow = ({ hora, city, language, referenceDate, active }) => {
         <small>{bilingual(planet.guidance, language)}</small>
       </span>
       <time className="panchangam-hora-range">
-        <span><small>From{range.fromDate && ` · ${range.fromDate}`}</small><strong>{range.from}</strong></span>
+        <span><small>{phrase(language, 'నుండి', 'From')}{range.fromDate && ` · ${range.fromDate}`}</small><strong>{range.from}</strong></span>
         <span aria-hidden="true">→</span>
-        <span><small>To{range.toDate && ` · ${range.toDate}`}</small><strong>{range.to}</strong></span>
+        <span><small>{phrase(language, 'వరకు', 'To')}{range.toDate && ` · ${range.toDate}`}</small><strong>{range.to}</strong></span>
       </time>
     </div>
   );
@@ -67,7 +68,7 @@ function HoraSchedule({ data, city, language }) {
   }, [civilHoras, isToday, now]);
 
   if (!data.horas?.length) {
-    return <p className="panchangam-empty-copy">Hora timings are unavailable because complete solar times were not returned for this location.</p>;
+    return <p className="panchangam-empty-copy">{phrase(language, 'ఈ స్థానానికి పూర్తి సూర్య సమయాలు అందకపోవడంతో హోరా సమయాలు లభించలేదు.', 'Hora timings are unavailable because complete solar times were not returned for this location.')}</p>;
   }
 
   const featured = currentHora || civilHoras[0];
@@ -81,8 +82,8 @@ function HoraSchedule({ data, city, language }) {
       <div className="panchangam-hora-date">
         <div>
           <strong>హోరా సమయాలు · Hora Timings</strong>
-          <small>Horas touching this calendar date · Complete times</small>
-          <small>Official local time · {timeZoneDetails.label}</small>
+          <small>{phrase(language, 'ఈ క్యాలెండర్ తేదీని తాకే పూర్తి హోరా సమయాలు', 'Horas touching this calendar date · Complete times')}</small>
+          <small>{phrase(language, 'అధికారిక స్థానిక సమయం', 'Official local time')} · {timeZoneDetails.label}</small>
         </div>
         <time dateTime={data.date}>{formatLongDate(data.date)}</time>
       </div>
@@ -90,38 +91,38 @@ function HoraSchedule({ data, city, language }) {
         <span className="panchangam-current-hora-symbol" aria-hidden="true">{featuredPlanet.symbol}</span>
         <div>
           <span className="panchangam-kicker">
-            {currentHora ? 'Current Hora' : 'First Hora of selected date'}
+            {currentHora ? phrase(language, 'ప్రస్తుత హోరా', 'Current Hora') : phrase(language, 'ఎంచుకున్న తేదీ మొదటి హోరా', 'First Hora of selected date')}
           </span>
           <h4>{bilingual(featuredPlanet.name, language)} · {horaLabel}</h4>
           <p>{bilingual(featuredPlanet.guidance, language)}</p>
         </div>
         <div className="panchangam-current-hora-time">
           <strong>
-            <span className="panchangam-current-boundary"><small>From{featuredRange.fromDate && ` · ${featuredRange.fromDate}`}</small>{featuredRange.from}</span>
+            <span className="panchangam-current-boundary"><small>{phrase(language, 'నుండి', 'From')}{featuredRange.fromDate && ` · ${featuredRange.fromDate}`}</small>{featuredRange.from}</span>
             <span aria-hidden="true">→</span>
-            <span className="panchangam-current-boundary"><small>To{featuredRange.toDate && ` · ${featuredRange.toDate}`}</small>{featuredRange.to}</span>
+            <span className="panchangam-current-boundary"><small>{phrase(language, 'వరకు', 'To')}{featuredRange.toDate && ` · ${featuredRange.toDate}`}</small>{featuredRange.to}</span>
           </strong>
-          <small>{currentHora ? remainingText(featured.end, now) : qualityText(featuredPlanet.tone, language)}</small>
+          <small>{currentHora ? remainingText(featured.end, now, language) : qualityText(featuredPlanet.tone, language)}</small>
         </div>
       </div>
 
       <div className="panchangam-hora-actions">
-        <p>Date-wise view for {city.name}. Calculations remain based on local sunrise and sunset.</p>
+        <p>{phrase(language, `${city.name} తేదీవారీ దృశ్యం. గణనలు స్థానిక సూర్యోదయం, సూర్యాస్తమయంపైనే ఆధారపడతాయి.`, `Date-wise view for ${city.name}. Calculations remain based on local sunrise and sunset.`)}</p>
         <Button size="sm" variant="outline-secondary" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded}>
-          {expanded ? 'Hide date-wise timings' : 'View date-wise timings'}
+          {expanded ? phrase(language, 'తేదీవారీ సమయాలు దాచండి', 'Hide date-wise timings') : phrase(language, 'తేదీవారీ సమయాలు చూడండి', 'View date-wise timings')}
         </Button>
       </div>
 
       {expanded && (
         <div className="panchangam-hora-columns is-civil-day">
           <section>
-            <header><strong>అర్ధరాత్రి నుండి అర్ధరాత్రి వరకు · Full calendar day</strong><small>Boundary Horas include their complete times</small></header>
+            <header><strong>{phrase(language, 'అర్ధరాత్రి నుండి అర్ధరాత్రి వరకు', 'Full calendar day')}</strong><small>{phrase(language, 'సరిహద్దు హోరాల పూర్తి సమయాలు చూపబడతాయి', 'Boundary Horas include their complete times')}</small></header>
             {civilHoras.map((hora) => <HoraRow key={`${hora.start}-${hora.planetKey}`} hora={hora} city={city} language={language} referenceDate={data.date} active={hora === currentHora} />)}
           </section>
         </div>
       )}
 
-      <p className="panchangam-hora-note">Hora suitability is a traditional general guide. Consider Tithi, Nakshatra and the nature of the activity for important decisions.</p>
+      <p className="panchangam-hora-note">{phrase(language, 'హోరా అనుకూలత సంప్రదాయ సాధారణ మార్గదర్శకం. ముఖ్య నిర్ణయాలకు తిథి, నక్షత్రం, కార్య స్వభావాన్ని కూడా పరిశీలించండి.', 'Hora suitability is a traditional general guide. Consider Tithi, Nakshatra and the nature of the activity for important decisions.')}</p>
     </div>
   );
 }

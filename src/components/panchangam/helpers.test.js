@@ -8,6 +8,7 @@ import {
   monthFromDate,
   replaceYear,
   shiftMonth,
+  specialYogasForCivilDate,
 } from './helpers';
 
 describe('Panchangam helpers', () => {
@@ -70,5 +71,18 @@ describe('Panchangam helpers', () => {
     expect(formatCivilHoraRange(result[2], 'UTC', '2026-08-01')).toEqual({
       from: '11:30 PM', to: '12:30 AM', fromDate: '', toDate: '2 Aug',
     });
+  });
+
+  test('includes Special Yogas from both Panchang days that touch a civil date', () => {
+    const previousYogas = [
+      { key: 'amrita-siddhi', start: '2026-07-31T23:30:00Z', end: '2026-08-01T05:00:00Z' },
+      { key: 'outside', start: '2026-07-31T10:00:00Z', end: '2026-07-31T11:00:00Z' },
+    ];
+    const yogas = [
+      { key: 'sarvartha-siddhi', start: '2026-08-01T18:00:00Z', end: '2026-08-02T05:00:00Z' },
+    ];
+
+    expect(specialYogasForCivilDate(previousYogas, yogas, '2026-08-01', 'UTC').map((yoga) => yoga.key))
+      .toEqual(['amrita-siddhi', 'sarvartha-siddhi']);
   });
 });

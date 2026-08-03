@@ -151,6 +151,24 @@ export const horasForCivilDate = (previousHoras = [], horas = [], date, timezone
     })
     .sort((left, right) => new Date(left.start).getTime() - new Date(right.start).getTime());
 
+export const specialYogasForCivilDate = (previousYogas = [], yogas = [], date, timezone) => {
+  const seen = new Set();
+  return [...previousYogas, ...yogas]
+    .filter((yoga) => {
+      const start = new Date(yoga.start).getTime();
+      const end = new Date(yoga.end).getTime();
+      if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return false;
+      return dateForInstant(start, timezone) <= date && dateForInstant(end - 1, timezone) >= date;
+    })
+    .filter((yoga) => {
+      const identity = `${yoga.key}:${yoga.start}:${yoga.end}`;
+      if (seen.has(identity)) return false;
+      seen.add(identity);
+      return true;
+    })
+    .sort((left, right) => new Date(left.start).getTime() - new Date(right.start).getTime());
+};
+
 const formatHoraClock = (value, timezone) =>
   new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
@@ -166,12 +184,45 @@ const formatHoraDate = (value, timezone) =>
     month: 'short',
   }).format(new Date(value));
 
-export const formatCivilHoraRange = (hora, timezone, date) => ({
-  from: formatHoraClock(hora.start, timezone),
-  to: formatHoraClock(hora.end, timezone),
-  fromDate: dateForInstant(hora.start, timezone) === date ? '' : formatHoraDate(hora.start, timezone),
-  toDate: dateForInstant(hora.end, timezone) === date ? '' : formatHoraDate(hora.end, timezone),
-});
+const roundedMinute = (value) => new Date(Math.round(new Date(value).getTime() / 60000) * 60000);
+
+const formatCivilRange = (range, timezone, date, roundToMinute = false) => {
+  const start = roundToMinute ? roundedMinute(range.start) : new Date(range.start);
+  const end = roundToMinute ? roundedMinute(range.end) : new Date(range.end);
+  return {
+    from: formatHoraClock(start, timezone),
+    to: formatHoraClock(end, timezone),
+    fromDate: dateForInstant(start, timezone) === date ? '' : formatHoraDate(start, timezone),
+    toDate: dateForInstant(end, timezone) === date ? '' : formatHoraDate(end, timezone),
+  };
+};
+
+export const formatCivilHoraRange = (hora, timezone, date) =>
+  formatCivilRange(hora, timezone, date);
+
+export const formatCivilLagnaRange = (lagna, timezone, date) => {
+  const range = formatCivilRange(lagna, timezone, date, true);
+  const fromZone = getTimeZoneDetails(timezone, lagna.start);
+  const toZone = getTimeZoneDetails(timezone, lagna.end);
+  return {
+    ...range,
+    fromZone,
+    toZone,
+    zoneChanged: fromZone.offset !== toZone.offset,
+  };
+};
+
+export const formatCivilSpecialYogaRange = (yoga, timezone, date) => {
+  const range = formatCivilRange(yoga, timezone, date, true);
+  const fromZone = getTimeZoneDetails(timezone, yoga.start);
+  const toZone = getTimeZoneDetails(timezone, yoga.end);
+  return {
+    ...range,
+    fromZone,
+    toZone,
+    zoneChanged: fromZone.offset !== toZone.offset,
+  };
+};
 
 export const formatRanges = (ranges, timezone, short = false, referenceDate) => {
   if (!Array.isArray(ranges) || ranges.length === 0) return '—';

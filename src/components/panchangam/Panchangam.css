@@ -176,6 +176,21 @@ html[data-theme='dark'] .panchangam-page {
   justify-content: center;
 }
 
+.panchangam-year-readout {
+  align-items: center;
+  background: var(--pan-surface-soft);
+  border: 1px solid var(--pan-border);
+  border-radius: 6px;
+  color: var(--pan-text);
+  display: flex;
+  font-family: 'Noto Sans Telugu', sans-serif;
+  font-weight: 600;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.35rem 0.75rem;
+  text-align: center;
+}
+
 .panchangam-year-select {
   min-width: 105px;
 }
@@ -218,6 +233,106 @@ html[data-theme='dark'] .panchangam-page {
 .panchangam-calendar-panel {
   min-width: 0;
 }
+
+.panchangam-month-festivals {
+  border-top: 1px solid var(--pan-border);
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+}
+
+.panchangam-month-festivals-heading {
+  align-items: end;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 0.9rem;
+}
+
+.panchangam-month-festivals-heading h3 {
+  color: var(--pan-accent);
+  font-family: 'Noto Serif Telugu', Georgia, serif;
+  font-size: 1.3rem;
+  margin: 0.15rem 0 0;
+}
+
+.panchangam-month-festivals-heading p {
+  color: var(--pan-muted);
+  font-size: 0.76rem;
+  margin: 0;
+  max-width: 440px;
+  text-align: right;
+}
+
+.panchangam-month-festival-grid {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.panchangam-month-festival-grid button,
+.panchangam-festival-month-card button {
+  align-items: center;
+  background: var(--pan-surface-soft);
+  border: 1px solid var(--pan-border);
+  border-radius: 10px;
+  color: var(--pan-text);
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(72px, auto) minmax(0, 1fr) auto;
+  padding: 0.7rem 0.8rem;
+  text-align: left;
+  width: 100%;
+}
+
+.panchangam-month-festival-grid button:hover,
+.panchangam-festival-month-card button:hover { border-color: var(--pan-accent); }
+.panchangam-month-festival-grid time,
+.panchangam-festival-month-card button time { color: var(--pan-accent); font-size: 0.78rem; font-weight: 700; }
+.panchangam-month-festival-grid button > span,
+.panchangam-festival-month-card button > span { display: flex; flex-direction: column; min-width: 0; }
+.panchangam-month-festival-grid strong,
+.panchangam-festival-month-card button strong { font-family: 'Noto Sans Telugu', sans-serif; overflow-wrap: anywhere; }
+.panchangam-month-festival-grid small,
+.panchangam-festival-month-card button small { color: var(--pan-muted); font-size: 0.72rem; margin-top: 0.15rem; }
+.panchangam-month-festival-grid button > b,
+.panchangam-festival-month-card button > b { color: var(--pan-gold); font-size: 1.2rem; }
+.panchangam-festival-empty { color: var(--pan-muted); font-size: 0.85rem; margin: 0; }
+
+.panchangam-festival-calendar {
+  background: var(--pan-surface);
+  border: 1px solid var(--pan-border);
+  border-radius: 18px;
+  box-shadow: var(--pan-shadow);
+  padding: clamp(1rem, 3vw, 2rem);
+}
+
+.panchangam-festival-hero {
+  align-items: end;
+  background: radial-gradient(circle at 90% 15%, color-mix(in srgb, var(--pan-gold) 17%, transparent), transparent 34%), var(--pan-surface-soft);
+  border: 1px solid var(--pan-border);
+  border-radius: 15px;
+  display: flex;
+  gap: 1.5rem;
+  justify-content: space-between;
+  padding: 1.3rem;
+}
+
+.panchangam-festival-hero h2 { color: var(--pan-accent); font-family: 'Noto Serif Telugu', Georgia, serif; margin: 0.25rem 0; }
+.panchangam-festival-hero p { color: var(--pan-muted); margin: 0; }
+.panchangam-festival-hero .form-select { max-width: 220px; }
+.panchangam-festival-location-note { align-items: center; border-bottom: 1px solid var(--pan-border); display: flex; gap: 0.7rem; margin: 0.9rem 0; padding: 0.7rem; }
+.panchangam-festival-location-note > span { color: var(--pan-accent); font-size: 1.35rem; }
+.panchangam-festival-location-note p { display: flex; flex-direction: column; margin: 0; }
+.panchangam-festival-location-note small { color: var(--pan-muted); }
+.panchangam-festival-months { display: grid; gap: 0.85rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.panchangam-festival-month-card { border: 1px solid var(--pan-border); border-radius: 13px; overflow: hidden; }
+.panchangam-festival-month-card > header { align-items: center; background: var(--pan-surface-soft); border-bottom: 1px solid var(--pan-border); display: grid; gap: 0.65rem; grid-template-columns: auto minmax(0, 1fr) auto; padding: 0.8rem; }
+.panchangam-festival-month-card > header > span { color: var(--pan-gold); font-family: Georgia, serif; font-size: 1.35rem; }
+.panchangam-festival-month-card > header h3 { font-family: 'Noto Serif Telugu', Georgia, serif; font-size: 1.05rem; margin: 0; }
+.panchangam-festival-month-card > header small { color: var(--pan-muted); }
+.panchangam-festival-month-card button { border: 0; border-bottom: 1px solid var(--pan-border); border-radius: 0; }
+.panchangam-festival-month-card button:last-child { border-bottom: 0; }
+.panchangam-festival-month-card > p { color: var(--pan-muted); font-size: 0.82rem; margin: 0; padding: 1rem; }
 
 .panchangam-selected-panel {
   overflow: visible;
@@ -375,6 +490,40 @@ html[data-theme='dark'] .panchangam-page {
   min-width: 1rem;
 }
 
+.panchangam-calendar-key {
+  background: var(--pan-surface-soft);
+  border: 1px solid var(--pan-border);
+  border-radius: 10px;
+  color: var(--pan-muted);
+  font-family: 'Noto Sans Telugu', sans-serif;
+  margin-top: 0.75rem;
+  padding: 0.65rem 0.8rem;
+}
+
+.panchangam-calendar-key summary {
+  color: var(--pan-text);
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.panchangam-calendar-key > div {
+  display: grid;
+  gap: 0.45rem 0.8rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  padding-top: 0.65rem;
+}
+
+.panchangam-calendar-key > div > span {
+  align-items: baseline;
+  display: grid;
+  font-size: 0.67rem;
+  gap: 0.4rem;
+  grid-template-columns: 2rem minmax(0, 1fr);
+}
+
+.panchangam-calendar-key b { color: var(--pan-accent); }
+
 .panchangam-calendar-line.is-primary span {
   color: var(--pan-accent);
   font-weight: 700;
@@ -508,6 +657,60 @@ html[data-theme='dark'] .panchangam-page {
 .panchangam-day-details.is-compact .panchangam-timing-grid { grid-template-columns: 1fr; }
 .panchangam-day-details.is-compact .panchangam-detail-card { min-height: 82px; }
 
+.panchangam-special-yogas {
+  background: var(--pan-surface-soft);
+  border: 1px solid var(--pan-border);
+  border-radius: 14px;
+  padding: 0.85rem;
+}
+
+.panchangam-special-yoga-list { display: grid; gap: 0.7rem; }
+.panchangam-special-yoga-card {
+  align-items: center;
+  background: var(--pan-surface);
+  border: 1px solid var(--pan-border);
+  border-left: 4px solid var(--pan-gold);
+  border-radius: 12px;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 0.9rem 1rem;
+}
+.panchangam-special-yoga-card.is-active { background: color-mix(in srgb, var(--pan-gold) 13%, var(--pan-surface)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--pan-gold) 42%, transparent); }
+.panchangam-special-yoga-card.is-complete { border-left-color: var(--pan-muted); }
+.panchangam-special-yoga-copy { min-width: 0; }
+.panchangam-special-yoga-copy h4 { color: var(--pan-accent); font-family: 'Noto Sans Telugu', sans-serif; font-size: 1.08rem; margin: 0.18rem 0; }
+.panchangam-special-yoga-copy p { color: var(--pan-muted) !important; font-family: 'Noto Sans Telugu', sans-serif; font-size: 0.76rem; margin: 0.2rem 0 0; }
+.panchangam-special-yoga-status { color: #33735d; font-size: 0.65rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+.panchangam-special-yoga-card.is-complete .panchangam-special-yoga-status { color: var(--pan-muted); }
+.panchangam-special-yoga-basis { color: var(--pan-ink); font-family: 'Noto Sans Telugu', sans-serif; font-size: 0.75rem; }
+.panchangam-special-yoga-warning { color: var(--pan-accent) !important; font-weight: 600; }
+.panchangam-special-yoga-time { align-items: center; display: flex; gap: 0.55rem; white-space: nowrap; }
+.panchangam-special-yoga-time > span:not([aria-hidden]) { display: flex; flex-direction: column; min-width: 88px; }
+.panchangam-special-yoga-time > span:last-child { text-align: right; }
+.panchangam-special-yoga-time small { color: var(--pan-muted); font-size: 0.59rem; font-weight: 700; text-transform: uppercase; }
+.panchangam-special-yoga-time strong { font-size: 0.88rem; }
+.panchangam-special-yoga-empty { align-items: center; background: var(--pan-surface); border: 1px dashed var(--pan-border); border-radius: 11px; display: flex; gap: 0.8rem; padding: 0.9rem; }
+.panchangam-special-yoga-empty > span { color: var(--pan-gold); font-size: 1.5rem; }
+.panchangam-special-yoga-empty strong { font-family: 'Noto Sans Telugu', sans-serif; font-size: 0.82rem; }
+.panchangam-special-yoga-empty p { color: var(--pan-muted) !important; font-size: 0.72rem; margin: 0.15rem 0 0; }
+.panchangam-special-yoga-day-list { margin-top: 0.8rem; }
+.panchangam-special-yoga-row { align-items: center; border-bottom: 1px solid var(--pan-border); display: grid; gap: 0.75rem; grid-template-columns: minmax(0, 1fr) auto; min-height: 62px; padding: 0.55rem 0.7rem; }
+.panchangam-special-yoga-row:last-child { border-bottom: 0; }
+.panchangam-special-yoga-row-copy { display: flex; flex-direction: column; min-width: 0; }
+.panchangam-special-yoga-row-copy strong { color: var(--pan-accent); font-family: 'Noto Sans Telugu', sans-serif; font-size: 0.82rem; }
+.panchangam-special-yoga-row-copy small { color: var(--pan-muted); font-family: 'Noto Sans Telugu', sans-serif; font-size: 0.67rem; }
+.panchangam-special-yoga-day-empty { color: var(--pan-muted) !important; font-size: 0.78rem; margin: 0; padding: 0.8rem; }
+.panchangam-yoga-heading { align-items: center; display: flex; gap: 1rem; justify-content: space-between; margin-bottom: 0.65rem; }
+.panchangam-yoga-heading h3 { margin: 0 !important; }
+.panchangam-yoga-heading .btn { font-family: 'Noto Sans Telugu', sans-serif; }
+.panchangam-yoga-difference { background: color-mix(in srgb, var(--pan-gold) 8%, var(--pan-surface)); border: 1px solid color-mix(in srgb, var(--pan-gold) 34%, var(--pan-border)); border-radius: 10px; color: var(--pan-muted) !important; font-size: 0.76rem; margin: 0 0 0.7rem; padding: 0.65rem 0.75rem; }
+.panchangam-yoga-difference strong { color: var(--pan-accent); }
+.panchangam-current-nitya-yoga { border-left-color: #33735d; }
+.panchangam-current-nitya-yoga .panchangam-current-hora-symbol { color: #33735d; font-size: 1.65rem; font-weight: 800; }
+.panchangam-nitya-yoga-list { margin-top: 0.8rem; }
+.panchangam-special-yoga-row.is-active { background: color-mix(in srgb, var(--pan-gold) 16%, var(--pan-surface)); box-shadow: inset 3px 0 0 var(--pan-gold); }
+
 .panchangam-hora {
   background: var(--pan-surface-soft);
   border: 1px solid var(--pan-border);
@@ -612,6 +815,21 @@ html[data-theme='dark'] .panchangam-page {
 .panchangam-hora-range small { color: var(--pan-muted); font-size: 0.56rem; font-weight: 600; text-transform: uppercase; }
 .panchangam-hora-range strong { font-size: 0.72rem; }
 .panchangam-hora-note { border-top: 1px solid var(--pan-border); margin-top: 0.8rem; padding-top: 0.65rem; }
+.panchangam-current-lagna { border-left-color: var(--pan-gold); }
+.panchangam-current-lagna p + p { margin-top: 0.2rem !important; }
+.panchangam-lagna-nature {
+  background: color-mix(in srgb, var(--pan-gold) 14%, var(--pan-surface));
+  border: 1px solid color-mix(in srgb, var(--pan-gold) 38%, var(--pan-border));
+  border-radius: 999px;
+  color: var(--pan-accent);
+  display: inline-flex;
+  font-family: 'Noto Sans Telugu', sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  margin: 0.1rem 0 0.3rem;
+  padding: 0.18rem 0.5rem;
+}
+.panchangam-lagna-row .panchangam-hora-symbol { color: var(--pan-gold); }
 
 .panchangam-loading {
   align-items: center;
@@ -673,6 +891,37 @@ html[data-theme='dark'] .panchangam-page {
 .panchangam-tool-answer strong { color: var(--pan-accent); font-family: 'Noto Sans Telugu', sans-serif; font-size: 1.2rem; margin: 0.25rem 0; }
 .panchangam-tool-answer small { color: var(--pan-muted); }
 
+.panchangam-horoscope-launch {
+  align-items: center;
+  background: var(--pan-text);
+  border: 1px solid var(--pan-border);
+  border-radius: 14px;
+  color: #fff6e9;
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  margin-top: 1rem;
+  min-height: 96px !important;
+  padding: 1rem 1.15rem;
+  text-align: left;
+  width: 100%;
+}
+
+html[data-theme='dark'] .panchangam-horoscope-launch { background: #120f0d; }
+.panchangam-horoscope-launch:hover { border-color: var(--pan-accent); }
+.panchangam-muhurtham-launch { background: color-mix(in srgb, var(--pan-text) 92%, var(--pan-accent)); }
+html[data-theme='dark'] .panchangam-muhurtham-launch { background: color-mix(in srgb, #120f0d 88%, var(--pan-accent)); }
+.panchangam-marriage-launch { background: linear-gradient(120deg, color-mix(in srgb, var(--pan-text) 92%, #7a2845), color-mix(in srgb, var(--pan-text) 91%, var(--pan-gold))); }
+html[data-theme='dark'] .panchangam-marriage-launch { background: linear-gradient(120deg, #1d1217, #1c1710); }
+.panchangam-muhurtham-launch .panchangam-horoscope-mark { border-radius: 12px; }
+.panchangam-horoscope-mark { align-items: center; border: 1px solid color-mix(in srgb, var(--pan-gold) 65%, transparent); border-radius: 50%; color: var(--pan-gold); display: flex; font-size: 1.45rem; height: 52px; justify-content: center; width: 52px; }
+.panchangam-horoscope-copy { display: grid; gap: 0.14rem; min-width: 0; }
+.panchangam-horoscope-copy small { color: var(--pan-gold); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; }
+.panchangam-horoscope-copy strong { color: #fff6e9; font-family: 'Noto Serif Telugu', Georgia, serif; font-size: 1.05rem; }
+.panchangam-horoscope-copy > span { color: #c9b7a8; font-size: 0.75rem; }
+.panchangam-horoscope-action { border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 9px; color: #fff6e9; font-size: 0.73rem; font-weight: 700; padding: 0.65rem 0.75rem; white-space: nowrap; }
+.panchangam-horoscope-action b { color: var(--pan-gold); margin-left: 0.35rem; }
+
 .panchangam-divider { align-items: center; color: var(--text-muted); display: flex; font-size: 0.78rem; gap: 0.75rem; margin-bottom: 1rem; text-transform: uppercase; }
 .panchangam-divider::before,
 .panchangam-divider::after { background: var(--border-color); content: ''; flex: 1; height: 1px; }
@@ -695,6 +944,13 @@ html[data-theme='dark'] .panchangam-page {
   .panchangam-day-details.is-compact .panchangam-timing-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
+@media (max-width: 575.98px) {
+  .panchangam-horoscope-launch { align-items: start; grid-template-columns: auto minmax(0, 1fr); }
+  .panchangam-horoscope-action { grid-column: 2; white-space: normal; }
+  .panchangam-horoscope-copy strong,
+  .panchangam-horoscope-copy > span { overflow-wrap: anywhere; }
+}
+
 @media (max-width: 767.98px) {
   .panchangam-page { margin-bottom: 2rem; }
   .panchangam-command-bar { border-radius: 14px; padding: 1.25rem; }
@@ -712,6 +968,14 @@ html[data-theme='dark'] .panchangam-page {
   .panchangam-selected-panel,
   .panchangam-tools-section { border-radius: 14px; padding: 0.8rem; }
   .panchangam-month-heading { align-items: flex-start; flex-direction: column; gap: 0.2rem; }
+  .panchangam-month-festivals-heading,
+  .panchangam-festival-hero { align-items: stretch; flex-direction: column; }
+  .panchangam-month-festivals-heading p { text-align: left; }
+  .panchangam-month-festival-grid,
+  .panchangam-festival-months { grid-template-columns: 1fr; }
+  .panchangam-festival-hero .form-select { max-width: none; }
+  .panchangam-month-festival-grid button,
+  .panchangam-festival-month-card button { grid-template-columns: minmax(66px, auto) minmax(0, 1fr) auto; }
   .panchangam-day { min-height: 315px !important; padding: 0.55rem; }
   .panchangam-day-hero { align-items: flex-start; }
   .panchangam-moon { min-width: 70px; }
@@ -724,6 +988,13 @@ html[data-theme='dark'] .panchangam-page {
   .panchangam-day-details.is-compact .panchangam-timing-grid { grid-template-columns: 1fr; }
   .panchangam-year-line { align-items: center; flex-direction: column; }
   .panchangam-year-line span + span::before { content: none; }
+  .panchangam-special-yoga-card { align-items: stretch; grid-template-columns: 1fr; }
+  .panchangam-special-yoga-time { justify-content: space-between; }
+  .panchangam-special-yoga-row { align-items: stretch; grid-template-columns: 1fr; }
+  .panchangam-special-yoga-row .panchangam-hora-range { justify-content: space-between; }
+  .panchangam-yoga-heading { align-items: stretch; flex-direction: column; }
+  .panchangam-yoga-heading .btn-group { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  .panchangam-yoga-heading .btn { white-space: normal; }
   .panchangam-section-heading { align-items: flex-start; flex-direction: column; gap: 0.35rem; }
   .panchangam-inline-form { align-items: stretch; flex-direction: column; }
   .panchangam-current-hora { align-items: start; grid-template-columns: auto minmax(0, 1fr); }
@@ -732,6 +1003,37 @@ html[data-theme='dark'] .panchangam-page {
   .panchangam-hora-columns { grid-template-columns: 1fr; }
   .panchangam-hora-date { align-items: flex-start; flex-direction: column; gap: 0.25rem; }
   .panchangam-hora-date time { text-align: left; }
+  .panchangam-lagna-row {
+    align-items: start;
+    gap: 0.35rem 0.65rem;
+    grid-template-columns: 32px minmax(0, 1fr);
+    padding: 0.7rem;
+  }
+  .panchangam-lagna-row .panchangam-hora-symbol {
+    font-size: 1.35rem;
+    padding-top: 0.1rem;
+  }
+  .panchangam-lagna-row .panchangam-hora-name strong { font-size: 0.86rem; }
+  .panchangam-lagna-row .panchangam-hora-name small {
+    font-size: 0.69rem;
+    line-height: 1.35;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+  .panchangam-lagna-row .panchangam-hora-range {
+    border-top: 1px solid var(--pan-border);
+    display: grid;
+    gap: 0.45rem;
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    margin-top: 0.35rem;
+    padding-top: 0.55rem;
+    width: 100%;
+  }
+  .panchangam-lagna-row .panchangam-hora-range > span:not([aria-hidden]) { min-width: 0; }
+  .panchangam-lagna-row .panchangam-hora-range small { font-size: 0.58rem; }
+  .panchangam-lagna-row .panchangam-hora-range strong { font-size: 0.78rem; }
 }
 
 @media (max-width: 420px) {

@@ -35,6 +35,9 @@ const TAB_ROUTES = {
   frame: '/frame',
   resume: '/resume',
   panchangam: '/panchangam',
+  horoscope: '/horoscope',
+  muhurtham: '/muhurtham',
+  marriage: '/marriage-match',
 };
 
 const ROUTE_TO_TAB = Object.fromEntries(
@@ -44,6 +47,9 @@ const ROUTE_TO_TAB = Object.fromEntries(
 const DEFAULT_TAB = 'passport';
 const THEME_STORAGE_KEY = 'ui-theme-mode';
 const Panchangam = lazy(() => import('./components/panchangam/Panchangam'));
+const Horoscope = lazy(() => import('./components/horoscope/Horoscope'));
+const Muhurtham = lazy(() => import('./components/muhurtham/Muhurtham'));
+const MarriageMatch = lazy(() => import('./components/marriage/MarriageMatch'));
 
 const getTabFromHash = () => {
   const rawHash = window.location.hash.replace(/^#/, '');
@@ -178,6 +184,21 @@ function App() {
         {activeTab === 'panchangam' && (
           <Suspense fallback={<p className="text-center text-muted py-5">Loading Panchangam…</p>}>
             <Panchangam />
+          </Suspense>
+        )}
+        {activeTab === 'horoscope' && (
+          <Suspense fallback={<p className="text-center text-muted py-5">Preparing Horoscope…</p>}>
+            <Horoscope />
+          </Suspense>
+        )}
+        {activeTab === 'muhurtham' && (
+          <Suspense fallback={<p className="text-center text-muted py-5">Preparing Personal Muhurtham…</p>}>
+            <Muhurtham />
+          </Suspense>
+        )}
+        {activeTab === 'marriage' && (
+          <Suspense fallback={<p className="text-center text-muted py-5">Preparing Marriage Horoscope Match…</p>}>
+            <MarriageMatch />
           </Suspense>
         )}
       </Container>

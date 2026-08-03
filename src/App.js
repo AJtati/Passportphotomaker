@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { Container, Row, Col, Navbar, DropdownButton, Dropdown, Nav, Form } from 'react-bootstrap';
 import Settings from './components/Settings';
 import Editor from './components/Editor';
@@ -34,6 +34,10 @@ const TAB_ROUTES = {
   collage: '/collage',
   frame: '/frame',
   resume: '/resume',
+  panchangam: '/panchangam',
+  horoscope: '/horoscope',
+  muhurtham: '/muhurtham',
+  marriage: '/marriage-match',
 };
 
 const ROUTE_TO_TAB = Object.fromEntries(
@@ -42,6 +46,10 @@ const ROUTE_TO_TAB = Object.fromEntries(
 
 const DEFAULT_TAB = 'passport';
 const THEME_STORAGE_KEY = 'ui-theme-mode';
+const Panchangam = lazy(() => import('./components/panchangam/Panchangam'));
+const Horoscope = lazy(() => import('./components/horoscope/Horoscope'));
+const Muhurtham = lazy(() => import('./components/muhurtham/Muhurtham'));
+const MarriageMatch = lazy(() => import('./components/marriage/MarriageMatch'));
 
 const getTabFromHash = () => {
   const rawHash = window.location.hash.replace(/^#/, '');
@@ -146,6 +154,9 @@ function App() {
               <Nav.Item>
                 <Nav.Link eventKey="resume">Build Resume</Nav.Link>
               </Nav.Item>
+              <Nav.Item>
+                <Nav.Link eventKey="panchangam">Panchangam</Nav.Link>
+              </Nav.Item>
             </Nav>
             <DropdownButton
               id="theme-dropdown"
@@ -170,6 +181,26 @@ function App() {
         {activeTab === 'collage' && <CollagePrint />}
         {activeTab === 'frame' && <CustomPhotoFrame />}
         {activeTab === 'resume' && <ResumeBuilder />}
+        {activeTab === 'panchangam' && (
+          <Suspense fallback={<p className="text-center text-muted py-5">Loading Panchangam…</p>}>
+            <Panchangam />
+          </Suspense>
+        )}
+        {activeTab === 'horoscope' && (
+          <Suspense fallback={<p className="text-center text-muted py-5">Preparing Horoscope…</p>}>
+            <Horoscope />
+          </Suspense>
+        )}
+        {activeTab === 'muhurtham' && (
+          <Suspense fallback={<p className="text-center text-muted py-5">Preparing Personal Muhurtham…</p>}>
+            <Muhurtham />
+          </Suspense>
+        )}
+        {activeTab === 'marriage' && (
+          <Suspense fallback={<p className="text-center text-muted py-5">Preparing Marriage Horoscope Match…</p>}>
+            <MarriageMatch />
+          </Suspense>
+        )}
       </Container>
     </>
   );

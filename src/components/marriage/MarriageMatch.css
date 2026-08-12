@@ -176,7 +176,11 @@
   .marriage-method-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 767.98px) {
+  .marriage-page :where(section, article, header, footer, aside, div) { min-width: 0; }
+  .marriage-page :where(h1, h2, h3, h4, p, label, button, strong, small) { overflow-wrap: anywhere; }
   .marriage-intake, .marriage-section { padding: .8rem; }
+  .marriage-place { align-items: start; }
+  .marriage-place strong, .marriage-place small { overflow: visible; text-overflow: clip; white-space: normal; }
   .marriage-person-grid, .marriage-paired, .marriage-kuja-pair, .marriage-reading-grid, .marriage-chart-pair, .marriage-indicator-grid, .marriage-outlook-grid { grid-template-columns: 1fr; }
   .marriage-calculate-wrap { align-items: stretch; flex-direction: column; }
   .marriage-calculate-wrap .btn { min-width: 0; width: 100%; }

@@ -4,7 +4,7 @@ import Settings from './components/Settings';
 import Editor from './components/Editor';
 import Preview from './components/Preview';
 import MultiPhoto from './components/MultiPhoto';
-import ImageResizer from './components/ImageResizer';
+import ImageTools from './components/ImageTools';
 import CollagePrint from './components/CollagePrint';
 import CustomPhotoFrame from './components/CustomPhotoFrame';
 import FormatDownloadDropdown from './components/FormatDownloadDropdown';
@@ -177,7 +177,7 @@ function App() {
       <Container>
         {activeTab === 'passport' && <PassportPhotoCreator />}
         {activeTab === 'multi' && <MultiPhoto />}
-        {activeTab === 'resize' && <ImageResizer />}
+        {activeTab === 'resize' && <ImageTools />}
         {activeTab === 'collage' && <CollagePrint />}
         {activeTab === 'frame' && <CustomPhotoFrame />}
         {activeTab === 'resume' && <ResumeBuilder />}

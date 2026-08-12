@@ -34,6 +34,8 @@
     "react-image-crop": "^11.0.10",
     "react-konva": "^19.2.2",
     "react-scripts": "5.0.1",
+    "svg-path-properties": "^2.0.2",
+    "svg2pdf.js": "^2.7.0",
     "use-image": "^1.1.4",
     "web-vitals": "^2.1.4"
   },

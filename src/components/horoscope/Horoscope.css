@@ -616,6 +616,8 @@ html[data-theme='dark'] .horoscope-intro-panel { background: #120f0d; }
 }
 
 @media (max-width: 767.98px) {
+  .horoscope-page :where(section, article, header, footer, aside, div) { min-width: 0; }
+  .horoscope-page :where(h1, h2, h3, h4, p, label, button, strong, small) { overflow-wrap: anywhere; }
   .horoscope-page { width: calc(100vw - 1rem); }
   .horoscope-command-bar { align-items: stretch; flex-direction: column; gap: 1rem; padding: 1.2rem; }
   .horoscope-header-actions { display: grid; grid-template-columns: 1fr 1fr; max-width: none; }
@@ -658,6 +660,8 @@ html[data-theme='dark'] .horoscope-intro-panel { background: #120f0d; }
   .horoscope-life-timeline::before { left: 30px; }
   .horoscope-timeline-age { height: 62px; width: 62px; }
   .horoscope-place-button { grid-template-columns: auto minmax(0, 1fr); }
+  .horoscope-place-button strong,
+  .horoscope-place-button small { overflow: visible; text-overflow: clip; white-space: normal; }
   .horoscope-place-button > b { display: none; }
 }
 

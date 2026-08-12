@@ -37,7 +37,8 @@ html[data-theme='dark'] .muhurtham-page {
 .muhurtham-download:hover, .muhurtham-calculate:hover { background: var(--m-accent-dark) !important; }
 .muhurtham-alert { margin: 1rem 0 0; }
 
-.muhurtham-intake { display: grid; gap: 1rem; grid-template-columns: minmax(0, .88fr) minmax(0, 1.12fr); margin-top: 1rem; }
+.muhurtham-intake { display: grid; gap: 1rem; grid-template-columns: minmax(0, .88fr) minmax(0, 1.12fr); margin-top: 1rem; min-width: 0; width: 100%; }
+.muhurtham-intake > *, .muhurtham-results > * { max-width: 100%; min-width: 0; width: 100%; }
 .muhurtham-event-panel, .muhurtham-family-panel, .muhurtham-method-panel, .muhurtham-submit-bar,
 .muhurtham-result-rail, .muhurtham-result-main {
   background: var(--m-surface); border: 1px solid var(--m-border); border-radius: 20px; box-shadow: var(--m-shadow);
@@ -268,6 +269,9 @@ html[data-theme='dark'] .muhurtham-page {
 }
 @media (max-width: 780px) {
   .muhurtham-page { left: auto; transform: none; width: 100%; }
+  .muhurtham-page :where(h1, h2, h3, h4, p, label, button, strong, small) { overflow-wrap: anywhere; }
+  .muhurtham-event-panel, .muhurtham-family-panel, .muhurtham-method-panel, .muhurtham-submit-bar { max-width: 100%; min-width: 0; width: 100%; }
+  .muhurtham-event-panel > *, .muhurtham-family-panel > *, .muhurtham-method-panel > *, .muhurtham-submit-bar > * { min-width: 0; }
   .muhurtham-command-bar { align-items: stretch; border-radius: 16px; flex-direction: column; gap: 1rem; min-height: 0; padding: 1.2rem 1rem 1rem 1.25rem; }
   .muhurtham-header-actions { justify-content: stretch; max-width: none; }
   .muhurtham-header-actions > * { flex: 1 1 160px; }
@@ -296,6 +300,8 @@ html[data-theme='dark'] .muhurtham-page {
   .muhurtham-date-grid, .muhurtham-person-grid, .muhurtham-check-grid { grid-template-columns: 1fr; }
   .muhurtham-mode-switch { grid-template-columns: 1fr; }
   .muhurtham-place-button { grid-template-columns: auto minmax(0, 1fr); }
+  .muhurtham-place-button strong, .muhurtham-place-button small,
+  .muhurtham-person-card > header strong { overflow: visible; text-overflow: clip; white-space: normal; }
   .muhurtham-place-button b { grid-column: 2; }
   .muhurtham-submit-bar { align-items: stretch; border-radius: 15px; grid-template-columns: 1fr; padding: 1rem; }
   .muhurtham-calculate { min-width: 0; width: 100%; }
